@@ -43,6 +43,24 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="machines"
+        options={{
+          title: 'Machines',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="construct" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="nutrition"
+        options={{
+          title: 'Nutrition',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="nutrition" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

@@ -35,7 +35,14 @@
         }
       ],
       "expo-font",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Gainz uses your photos to add pictures and tutorials to gym machines.",
+          "cameraPermission": "Gainz uses your camera to take photos of gym machines and their instructions."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false,

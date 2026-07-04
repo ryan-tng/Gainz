@@ -27,6 +27,18 @@ export function formatVolume(lb: number): string {
   return `${Math.round(lb)} lb`;
 }
 
+/** Start of the day containing `now` in epoch ms. */
+export function startOfDay(now = Date.now()): number {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Start of the next day (exclusive end of today) in epoch ms. */
+export function endOfDay(now = Date.now()): number {
+  return startOfDay(now) + 24 * 60 * 60 * 1000;
+}
+
 /** Start of the current week (Monday) in epoch ms. */
 export function startOfWeek(now = Date.now()): number {
   const d = new Date(now);

@@ -1,10 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Exercise, WorkoutSession } from './types';
+import type { Exercise, FoodEntry, Goal, Machine, WorkoutSession } from './types';
 
 const KEYS = {
   exercises: 'gainz:exercises',
   sessions: 'gainz:sessions',
   active: 'gainz:activeSession',
+  machines: 'gainz:machines',
+  foodEntries: 'gainz:foodEntries',
+  goal: 'gainz:goal',
 } as const;
 
 /** Simple unique id. Not cryptographic — fine for local records. */
@@ -35,4 +38,14 @@ export const storage = {
   loadActive: () => readJSON<WorkoutSession | null>(KEYS.active, null),
   saveActive: (v: WorkoutSession | null) =>
     v ? writeJSON(KEYS.active, v) : AsyncStorage.removeItem(KEYS.active),
+
+  loadMachines: () => readJSON<Machine[]>(KEYS.machines, []),
+  saveMachines: (v: Machine[]) => writeJSON(KEYS.machines, v),
+
+  loadFoodEntries: () => readJSON<FoodEntry[]>(KEYS.foodEntries, []),
+  saveFoodEntries: (v: FoodEntry[]) => writeJSON(KEYS.foodEntries, v),
+
+  loadGoal: () => readJSON<Goal | null>(KEYS.goal, null),
+  saveGoal: (v: Goal | null) =>
+    v ? writeJSON(KEYS.goal, v) : AsyncStorage.removeItem(KEYS.goal),
 };
