@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gainz — Waitlist Landing Page
 
-## Getting Started
+Marketing + waitlist landing page for **Gainz** (working title), a gym workout-tracker app.
+Built with Next.js (App Router) + Tailwind CSS, deployed on Vercel. Emails are collected via
+Kit (ConvertKit).
 
-First, run the development server:
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # then fill in your Kit credentials
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without Kit credentials the page still renders and the form validates input; submissions
+return a "not available right now" message until `KIT_API_KEY` / `KIT_FORM_ID` are set.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable       | Where to find it                                                        |
+| -------------- | ----------------------------------------------------------------------- |
+| `KIT_API_KEY`  | Kit → Settings → Advanced → **API Key** (v3)                            |
+| `KIT_FORM_ID`  | Open your Kit form; the numeric ID is in the URL / embed snippet         |
 
-## Learn More
+Set both in `.env.local` for local dev and in **Vercel → Project → Settings → Environment
+Variables** for production.
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy (Vercel)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Push this repo to GitHub.
+2. Import it in Vercel (framework auto-detected as Next.js).
+3. Add `KIT_API_KEY` and `KIT_FORM_ID` env vars.
+4. Deploy — launches on a free `*.vercel.app` URL; attach a custom domain later.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Structure
 
-## Deploy on Vercel
+- `app/page.tsx` — assembles the landing sections
+- `app/api/waitlist/route.ts` — server-side proxy to the Kit subscribe API
+- `components/` — Hero, Features, HowItWorks, CtaSection, WaitlistForm, Header, Footer, etc.
+- `lib/site.ts` — brand name, tagline, feature copy (change the name here to rebrand)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Editing the brand / copy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The product name and all marketing copy live in [`lib/site.ts`](lib/site.ts). "Gainz" is a
+working title — change `site.name` there and it updates everywhere.
