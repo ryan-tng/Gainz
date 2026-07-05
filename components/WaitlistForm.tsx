@@ -91,7 +91,7 @@ export function WaitlistForm({ id }: { id?: string }) {
         <button
           type="submit"
           disabled={status === "submitting"}
-          className="group inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3.5 font-semibold text-bg transition hover:brightness-105 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
+          className="group inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3.5 font-semibold text-bg shadow-lg shadow-accent/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-accent/30 hover:brightness-105 active:translate-y-0 active:scale-[0.98] active:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
         >
           {status === "submitting" ? (
             <>

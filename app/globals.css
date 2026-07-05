@@ -12,6 +12,10 @@
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-display), var(--font-geist-sans), sans-serif;
+
+  /* Expo.out-style easing recommended for this "Cinema Mobile" aesthetic. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @layer base {
@@ -43,6 +47,92 @@
       color-mix(in oklab, var(--color-accent-2) 14%, transparent) 0%,
       transparent 70%
     );
+}
+
+/* Slow-drifting ambient light blobs (Cinema Mobile aesthetic). */
+.ambient-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.5;
+  will-change: transform;
+  animation: drift 18s ease-in-out infinite alternate;
+}
+.ambient-blob-2 {
+  animation-duration: 24s;
+  animation-delay: -6s;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(6%, 4%, 0) scale(1.12);
+  }
+}
+
+@keyframes float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-14px);
+  }
+}
+.animate-float {
+  animation: float 5s var(--ease-out-expo) infinite alternate;
+  will-change: transform;
+}
+
+/* Staggered entrance for hero content. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  opacity: 0;
+  animation: rise 0.7s var(--ease-out-expo) forwards;
+}
+.rise-1 {
+  animation-delay: 0.05s;
+}
+.rise-2 {
+  animation-delay: 0.15s;
+}
+.rise-3 {
+  animation-delay: 0.25s;
+}
+.rise-4 {
+  animation-delay: 0.35s;
+}
+.rise-5 {
+  animation-delay: 0.45s;
+}
+
+/* Frosted-glass surface. */
+.glass {
+  background-color: color-mix(in oklab, var(--color-surface) 55%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .ambient-blob,
+  .animate-float,
+  .rise {
+    animation: none;
+  }
+  .rise {
+    opacity: 1;
+  }
 }
 
 .text-gradient {
