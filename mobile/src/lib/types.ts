@@ -54,6 +54,41 @@ export interface WorkoutSession {
   startedAt: number; // epoch ms
   finishedAt: number | null;
   exercises: WorkoutExercise[];
+  /** If this session was started from a template, the template it came from. */
+  templateId?: string;
+  /** Carried from the template so the active-workout view can theme itself. */
+  icon?: string;
+  color?: string;
+  /** Timer pause state: when currently paused, the moment it was paused (else null). */
+  pausedAt?: number | null;
+  /** Total time (ms) the timer has been paused, so elapsed excludes it. */
+  pausedMs?: number;
+}
+
+// ---------- Workout templates ("armies" you pick to train with) ----------
+
+/** A planned set with the weight × reps you usually do for it. */
+export interface TemplateSet {
+  weight: number | null; // lb
+  reps: number | null;
+}
+
+export interface TemplateExercise {
+  exerciseId: string;
+  name: string;
+  muscle: MuscleGroup;
+  /** Target sets, each carrying the usual weight/reps (prefilled when you start). */
+  sets: TemplateSet[];
+}
+
+export interface WorkoutTemplate {
+  id: string;
+  name: string;
+  icon: string; // Ionicons glyph name
+  color: string; // hex accent for the template
+  exercises: TemplateExercise[];
+  createdAt: number;
+  updatedAt: number;
 }
 
 // ---------- Nutrition (Phase C + D) ----------

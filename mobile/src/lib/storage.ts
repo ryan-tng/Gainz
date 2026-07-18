@@ -1,5 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Exercise, FoodEntry, Goal, Machine, WorkoutSession } from './types';
+import type {
+  Exercise,
+  FoodEntry,
+  Goal,
+  Machine,
+  WorkoutSession,
+  WorkoutTemplate,
+} from './types';
 
 const KEYS = {
   exercises: 'gainz:exercises',
@@ -8,6 +15,7 @@ const KEYS = {
   machines: 'gainz:machines',
   foodEntries: 'gainz:foodEntries',
   goal: 'gainz:goal',
+  templates: 'gainz:templates',
 } as const;
 
 /** Simple unique id. Not cryptographic — fine for local records. */
@@ -48,4 +56,7 @@ export const storage = {
   loadGoal: () => readJSON<Goal | null>(KEYS.goal, null),
   saveGoal: (v: Goal | null) =>
     v ? writeJSON(KEYS.goal, v) : AsyncStorage.removeItem(KEYS.goal),
+
+  loadTemplates: () => readJSON<WorkoutTemplate[]>(KEYS.templates, []),
+  saveTemplates: (v: WorkoutTemplate[]) => writeJSON(KEYS.templates, v),
 };

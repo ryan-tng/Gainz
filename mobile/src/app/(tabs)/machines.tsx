@@ -60,6 +60,7 @@ export default function MachinesScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.filterBar}
         contentContainerStyle={styles.filters}>
         {(['All', ...MUSCLE_GROUPS] as const).map((m) => (
           <Pressable
@@ -147,7 +148,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   search: { flex: 1, color: palette.fg, fontSize: 16, paddingVertical: Spacing.three },
-  filters: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.three, gap: Spacing.two },
+  filterBar: { flexGrow: 0, flexShrink: 0 },
+  filters: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.three, gap: Spacing.two, alignItems: 'center' },
   filterPill: {
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
