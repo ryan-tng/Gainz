@@ -27,7 +27,9 @@ interface NutritionContextValue {
   setGoal: (input: GoalInput) => Goal;
   clearGoal: () => void;
   addEntry: (entry: NewFoodEntry) => void;
+  updateEntry: (id: string, patch: Partial<Omit<FoodEntry, 'id' | 'loggedAt'>>) => void;
   deleteEntry: (id: string) => void;
+  getEntry: (id: string) => FoodEntry | undefined;
   entriesForDay: (dayStartMs: number, dayEndMs: number) => FoodEntry[];
 }
 
@@ -70,7 +72,10 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
           { ...entry, id: uid('food'), loggedAt: Date.now() },
           ...cur,
         ]),
+      updateEntry: (id, patch) =>
+        setEntries((cur) => cur.map((e) => (e.id === id ? { ...e, ...patch } : e))),
       deleteEntry: (id) => setEntries((cur) => cur.filter((e) => e.id !== id)),
+      getEntry: (id) => entries.find((e) => e.id === id),
       entriesForDay: (start, end) =>
         entries.filter((e) => e.loggedAt >= start && e.loggedAt < end),
     }),

@@ -1,5 +1,5 @@
 import { startOfDay, startOfWeek } from './format';
-import { sessionStats, type WorkoutSession } from './types';
+import { sessionStats, type MuscleGroup, type WorkoutSession } from './types';
 
 export interface DayBar {
   label: string; // weekday initial
@@ -71,5 +71,118 @@ export function computeDashboard(sessions: WorkoutSession[]): Dashboard {
     totalVolume,
     totalSets,
     last7,
+  };
+}
+
+// ---------- Personal records ----------
+
+export interface ExercisePR {
+  exerciseId: string;
+  name: string;
+  muscle: MuscleGroup;
+  /** Best estimated one-rep max (Epley) across all logged sets. */
+  best1RM: number;
+  /** Heaviest weight ever lifted, and the reps done at it. */
+  heaviestWeight: number;
+  heaviestWeightReps: number;
+  /** Most reps in a single set. */
+  bestReps: number;
+  /** Best single-set volume (weight × reps). */
+  bestSetVolume: number;
+  /** When the best 1RM was hit. */
+  achievedAt: number;
+}
+
+export interface Highlight {
+  name: string;
+  value: number;
+  at: number;
+}
+
+export interface Records {
+  totalPRs: number;
+  heaviestLift: (Highlight & { reps: number }) | null;
+  bestSessionVolume: Highlight | null;
+  longestSessionMs: Highlight | null;
+  exercises: ExercisePR[]; // sorted by best 1RM, strongest first
+}
+
+/** Epley estimated one-rep max. */
+function oneRepMax(weight: number, reps: number): number {
+  return Math.round(weight * (1 + reps / 30));
+}
+
+/** Compute all-time personal records from finished sessions. */
+export function computeRecords(sessions: WorkoutSession[]): Records {
+  const map = new Map<string, ExercisePR>();
+  let heaviestLift: Records['heaviestLift'] = null;
+  let bestSessionVolume: Highlight | null = null;
+  let longestSessionMs: Highlight | null = null;
+
+  for (const s of sessions) {
+    const at = s.finishedAt ?? s.startedAt;
+
+    const vol = sessionStats(s).volume;
+    if (vol > 0 && (!bestSessionVolume || vol > bestSessionVolume.value)) {
+      bestSessionVolume = { name: s.name, value: vol, at };
+    }
+
+    if (s.finishedAt) {
+      const ms = s.finishedAt - s.startedAt - (s.pausedMs ?? 0);
+      if (ms > 0 && (!longestSessionMs || ms > longestSessionMs.value)) {
+        longestSessionMs = { name: s.name, value: ms, at };
+      }
+    }
+
+    for (const ex of s.exercises) {
+      for (const set of ex.sets) {
+        if (!set.done) continue;
+        const w = set.weight ?? 0;
+        const r = set.reps ?? 0;
+        if (w <= 0 || r <= 0) continue;
+
+        const est = oneRepMax(w, r);
+        const setVol = w * r;
+
+        if (!heaviestLift || w > heaviestLift.value) {
+          heaviestLift = { name: ex.name, value: w, reps: r, at };
+        }
+
+        const cur = map.get(ex.exerciseId);
+        if (!cur) {
+          map.set(ex.exerciseId, {
+            exerciseId: ex.exerciseId,
+            name: ex.name,
+            muscle: ex.muscle,
+            best1RM: est,
+            heaviestWeight: w,
+            heaviestWeightReps: r,
+            bestReps: r,
+            bestSetVolume: setVol,
+            achievedAt: at,
+          });
+        } else {
+          if (est > cur.best1RM) {
+            cur.best1RM = est;
+            cur.achievedAt = at;
+          }
+          if (w > cur.heaviestWeight) {
+            cur.heaviestWeight = w;
+            cur.heaviestWeightReps = r;
+          }
+          if (r > cur.bestReps) cur.bestReps = r;
+          if (setVol > cur.bestSetVolume) cur.bestSetVolume = setVol;
+        }
+      }
+    }
+  }
+
+  const exercises = [...map.values()].sort((a, b) => b.best1RM - a.best1RM);
+  return {
+    totalPRs: exercises.length,
+    heaviestLift,
+    bestSessionVolume,
+    longestSessionMs,
+    exercises,
   };
 }

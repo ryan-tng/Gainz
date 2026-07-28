@@ -125,6 +125,33 @@ export interface FoodEntry {
   photoUri?: string;
 }
 
+/** One actionable focus area from the AI coach. */
+export interface CoachFocus {
+  title: string;
+  detail: string;
+}
+
+/** An AI-generated coaching plan, grounded in the Mifflin–St Jeor targets. */
+export interface CoachPlan {
+  headline: string;
+  feasibility: 'conservative' | 'realistic' | 'aggressive' | 'unsafe';
+  assessment: string;
+  recommendedCalories: number;
+  adjustment: string;
+  focus: CoachFocus[];
+  training: string;
+  warning: string;
+}
+
+/** Recent training/logging summary sent to the coach for context. */
+export interface CoachContext {
+  workoutsLast28Days: number;
+  workoutsPerWeek: number;
+  daysLoggedLast14: number;
+  avgDailyCalories: number | null;
+  avgDailyProteinG: number | null;
+}
+
 export const SEXES = ['male', 'female'] as const;
 export type Sex = (typeof SEXES)[number];
 

@@ -19,7 +19,7 @@ import { ExercisePickerModal } from '@/components/ExercisePickerModal';
 import { AppButton, Card, Loading } from '@/components/ui';
 import { palette, Radius, Spacing } from '@/constants/theme';
 import { formatDate, formatVolume } from '@/lib/format';
-import { computeDashboard } from '@/lib/stats';
+import { computeDashboard, computeRecords } from '@/lib/stats';
 import { sessionStats, type SetEntry, type WorkoutExercise, type WorkoutSession } from '@/lib/types';
 import { useWorkouts } from '@/store/workouts';
 
@@ -478,13 +478,34 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
   const { active, sessions, templates, startWorkout, startFromTemplate } = useWorkouts();
 
   const d = computeDashboard(sessions);
+  const records = computeRecords(sessions);
+  const topPRs = records.exercises.slice(0, 3);
   const recent = sessions.slice(0, 3);
   const maxBar = Math.max(1, ...d.last7.map((b) => b.value));
 
-  // Starting a workout just flips Home into the live takeover (like clocking in) —
-  // the logging screen opens from the takeover's "Continue logging" button.
-  const startEmpty = () => startWorkout();
-  const startTemplate = (id: string) => startFromTemplate(id);
+  // Starting a workout flips Home into the live takeover (like clocking in).
+  // If one is already in progress, warn before replacing it.
+  const confirmStart = (start: () => void) => {
+    const go = () => {
+      start();
+      onResumeView(); // ensure the live takeover shows (in case we were minimized)
+    };
+    if (active) {
+      Alert.alert(
+        'Workout in progress',
+        `You already have "${active.name}" going. Starting a new workout will discard it.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Discard & start', style: 'destructive', onPress: go },
+        ],
+      );
+      return;
+    }
+    go();
+  };
+
+  const startEmpty = () => confirmStart(() => startWorkout());
+  const startTemplate = (id: string) => confirmStart(() => startFromTemplate(id));
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -535,6 +556,39 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
             ))}
           </View>
         </Card>
+
+        {/* Personal records — only once there's something to show */}
+        {topPRs.length > 0 ? (
+          <>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Personal records</Text>
+              <Pressable onPress={() => router.push('/records')} hitSlop={8}>
+                <Text style={styles.link}>See all</Text>
+              </Pressable>
+            </View>
+            {topPRs.map((pr) => (
+              <Pressable key={pr.exerciseId} onPress={() => router.push('/records')}>
+                <Card style={styles.prRow}>
+                  <View style={styles.prMedal}>
+                    <Ionicons name="trophy" size={16} color={palette.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prRowName} numberOfLines={1}>
+                      {pr.name}
+                    </Text>
+                    <Text style={styles.prRowMeta}>
+                      {pr.heaviestWeight} lb × {pr.heaviestWeightReps}
+                    </Text>
+                  </View>
+                  <View style={styles.prRowRm}>
+                    <Text style={styles.prRowRmValue}>{pr.best1RM}</Text>
+                    <Text style={styles.prRowRmLabel}>est. 1RM</Text>
+                  </View>
+                </Card>
+              </Pressable>
+            ))}
+          </>
+        ) : null}
 
         {/* Templates — pick a workout to run */}
         <View style={styles.sectionHead}>
@@ -960,6 +1014,21 @@ const styles = StyleSheet.create({
   tplMeta: { color: palette.muted, fontSize: 12, marginTop: 1 },
   tplStart: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.three },
   tplStartText: { fontSize: 13, fontWeight: '800' },
+
+  prRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three },
+  prMedal: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.full,
+    backgroundColor: palette.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prRowName: { color: palette.fg, fontSize: 16, fontWeight: '700' },
+  prRowMeta: { color: palette.muted, fontSize: 13, marginTop: 1 },
+  prRowRm: { alignItems: 'flex-end' },
+  prRowRmValue: { color: palette.accent, fontSize: 18, fontWeight: '800' },
+  prRowRmLabel: { color: palette.muted, fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
 
   recentCard: {
     flexDirection: 'row',

@@ -10,7 +10,7 @@ import { useNutrition } from '@/store/nutrition';
 
 export default function NutritionScreen() {
   const router = useRouter();
-  const { loaded, goal, entriesForDay, deleteEntry } = useNutrition();
+  const { loaded, goal, entriesForDay } = useNutrition();
 
   if (!loaded) return <Loading />;
 
@@ -82,31 +82,54 @@ export default function NutritionScreen() {
           </Card>
         )}
 
-        <AppButton
-          label="Scan food"
-          icon="camera"
-          onPress={() => router.push('/nutrition/scan')}
-          style={{ marginTop: Spacing.one }}
-        />
+        <View style={styles.logRow}>
+          <AppButton
+            label="Scan food"
+            icon="camera"
+            onPress={() => router.push('/nutrition/scan')}
+            style={styles.logBtn}
+          />
+          <AppButton
+            label="Add manually"
+            icon="create-outline"
+            variant="secondary"
+            onPress={() => router.push('/nutrition/add')}
+            style={styles.logBtn}
+          />
+        </View>
+
+        {goal ? (
+          <AppButton
+            label="AI coaching plan"
+            icon="sparkles"
+            variant="secondary"
+            onPress={() => router.push('/nutrition/coach')}
+          />
+        ) : null}
 
         <Text style={styles.sectionTitle}>Today&apos;s log</Text>
         {today.length === 0 ? (
           <Text style={styles.empty}>Nothing logged yet. Scan a meal to get started.</Text>
         ) : (
           today.map((e) => (
-            <Card key={e.id} style={styles.entry}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.entryName}>{e.label}</Text>
-                <Text style={styles.entryMeta}>
-                  {formatTime(e.loggedAt)} · P{Math.round(e.protein_g)} C{Math.round(e.carbs_g)} F
-                  {Math.round(e.fat_g)}
-                </Text>
-              </View>
-              <Text style={styles.entryCals}>{e.calories}</Text>
-              <Pressable onPress={() => deleteEntry(e.id)} hitSlop={8} style={{ marginLeft: Spacing.three }}>
-                <Ionicons name="close-circle" size={20} color={palette.muted} />
-              </Pressable>
-            </Card>
+            <Pressable key={e.id} onPress={() => router.push(`/nutrition/add?id=${e.id}`)}>
+              <Card style={styles.entry}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.entryName}>{e.label}</Text>
+                  <Text style={styles.entryMeta}>
+                    {formatTime(e.loggedAt)} · P{Math.round(e.protein_g)} C{Math.round(e.carbs_g)} F
+                    {Math.round(e.fat_g)}
+                  </Text>
+                </View>
+                <Text style={styles.entryCals}>{e.calories}</Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={palette.muted}
+                  style={{ marginLeft: Spacing.three }}
+                />
+              </Card>
+            </Pressable>
           ))
         )}
       </ScrollView>
@@ -136,6 +159,9 @@ const styles = StyleSheet.create({
   title: { color: palette.fg, fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
   goalBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   goalBtnText: { color: palette.accent, fontSize: 14, fontWeight: '700' },
+
+  logRow: { flexDirection: 'row', gap: Spacing.three, marginTop: Spacing.one },
+  logBtn: { flex: 1 },
 
   ringCard: { alignItems: 'center' },
   remainingLabel: { color: palette.muted, fontSize: 14, fontWeight: '600' },
