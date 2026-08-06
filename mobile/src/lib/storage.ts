@@ -1,12 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
+  CoachPlan,
   Exercise,
   FoodEntry,
   Goal,
   Machine,
+  Profile,
   WorkoutSession,
   WorkoutTemplate,
 } from './types';
+
+/** A saved coach plan plus when it was generated. */
+export interface StoredCoachPlan {
+  plan: CoachPlan;
+  generatedAt: number;
+}
 
 const KEYS = {
   exercises: 'gainz:exercises',
@@ -16,7 +24,16 @@ const KEYS = {
   foodEntries: 'gainz:foodEntries',
   goal: 'gainz:goal',
   templates: 'gainz:templates',
+  coachPlan: 'gainz:coachPlan',
+  profile: 'gainz:profile',
+  theme: 'gainz:theme',
 } as const;
+
+/** Persisted theme preferences (mode + accent). */
+export interface StoredTheme {
+  mode: 'dark' | 'light' | 'system';
+  accent: string;
+}
 
 /** Simple unique id. Not cryptographic — fine for local records. */
 export function uid(prefix = 'id'): string {
@@ -59,4 +76,18 @@ export const storage = {
 
   loadTemplates: () => readJSON<WorkoutTemplate[]>(KEYS.templates, []),
   saveTemplates: (v: WorkoutTemplate[]) => writeJSON(KEYS.templates, v),
+
+  loadCoachPlan: () => readJSON<StoredCoachPlan | null>(KEYS.coachPlan, null),
+  saveCoachPlan: (v: StoredCoachPlan | null) =>
+    v ? writeJSON(KEYS.coachPlan, v) : AsyncStorage.removeItem(KEYS.coachPlan),
+
+  loadProfile: () => readJSON<Profile | null>(KEYS.profile, null),
+  saveProfile: (v: Profile | null) =>
+    v ? writeJSON(KEYS.profile, v) : AsyncStorage.removeItem(KEYS.profile),
+
+  loadTheme: () => readJSON<StoredTheme | null>(KEYS.theme, null),
+  saveTheme: (v: StoredTheme) => writeJSON(KEYS.theme, v),
+
+  /** Wipe every Gainz key — used by "Reset app data" in Settings. */
+  clearAll: () => AsyncStorage.multiRemove(Object.values(KEYS)),
 };

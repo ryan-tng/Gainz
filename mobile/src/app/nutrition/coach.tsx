@@ -5,32 +5,35 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton, Card } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { getCoachPlan } from '@/lib/coachApi';
-import { startOfDay } from '@/lib/format';
+import { formatDate, startOfDay } from '@/lib/format';
 import { weeksToGoal } from '@/lib/nutrition';
 import type { CoachContext, CoachPlan } from '@/lib/types';
 import { useNutrition } from '@/store/nutrition';
+import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const FEASIBILITY: Record<
-  CoachPlan['feasibility'],
-  { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }
-> = {
-  conservative: { label: 'Conservative', color: palette.accent2, icon: 'leaf-outline' },
-  realistic: { label: 'Realistic', color: palette.accent, icon: 'checkmark-circle-outline' },
-  aggressive: { label: 'Aggressive', color: '#fbbf24', icon: 'flame-outline' },
-  unsafe: { label: 'Unsafe', color: palette.danger, icon: 'warning-outline' },
-};
+type Feasibility = { label: string; color: string; icon: keyof typeof Ionicons.glyphMap };
+
+function feasibilityMeta(palette: Palette): Record<CoachPlan['feasibility'], Feasibility> {
+  return {
+    conservative: { label: 'Conservative', color: palette.accent2, icon: 'leaf-outline' },
+    realistic: { label: 'Realistic', color: palette.accent, icon: 'checkmark-circle-outline' },
+    aggressive: { label: 'Aggressive', color: '#fbbf24', icon: 'flame-outline' },
+    unsafe: { label: 'Unsafe', color: palette.danger, icon: 'warning-outline' },
+  };
+}
 
 export default function CoachScreen() {
   const router = useRouter();
-  const { goal, entries } = useNutrition();
+  const { goal, entries, coachPlan, coachPlanAt, saveCoachPlan } = useNutrition();
   const { sessions } = useWorkouts();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
-  const [plan, setPlan] = useState<CoachPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +69,7 @@ export default function CoachScreen() {
     setError(null);
     try {
       const result = await getCoachPlan(goal, weeksToGoal(goal), buildContext());
-      setPlan(result);
+      saveCoachPlan(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -116,7 +119,7 @@ export default function CoachScreen() {
               </Text>
             </Card>
 
-            {!plan && !loading ? (
+            {!coachPlan && !loading ? (
               <AppButton
                 label={error ? 'Try again' : 'Get my coaching plan'}
                 icon="sparkles"
@@ -137,7 +140,9 @@ export default function CoachScreen() {
               </Card>
             ) : null}
 
-            {plan ? <PlanView plan={plan} onRegenerate={generate} /> : null}
+            {coachPlan && !loading ? (
+              <PlanView plan={coachPlan} generatedAt={coachPlanAt} onRegenerate={generate} />
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -145,8 +150,19 @@ export default function CoachScreen() {
   );
 }
 
-function PlanView({ plan, onRegenerate }: { plan: CoachPlan; onRegenerate: () => void }) {
-  const f = FEASIBILITY[plan.feasibility] ?? FEASIBILITY.realistic;
+function PlanView({
+  plan,
+  generatedAt,
+  onRegenerate,
+}: {
+  plan: CoachPlan;
+  generatedAt: number | null;
+  onRegenerate: () => void;
+}) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const meta = feasibilityMeta(palette);
+  const f = meta[plan.feasibility] ?? meta.realistic;
 
   return (
     <>
@@ -204,6 +220,7 @@ function PlanView({ plan, onRegenerate }: { plan: CoachPlan; onRegenerate: () =>
         style={{ marginTop: Spacing.two }}
       />
       <Text style={styles.disclaimer}>
+        {generatedAt ? `Generated ${formatDate(generatedAt)}. ` : ''}
         AI-generated guidance based on your logged data. Not medical advice.
       </Text>
     </>
@@ -211,6 +228,8 @@ function PlanView({ plan, onRegenerate }: { plan: CoachPlan; onRegenerate: () =>
 }
 
 function Base({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.base}>
       <Text style={[styles.baseValue, accent && { color: palette.accent }]}>{value}</Text>
@@ -219,7 +238,8 @@ function Base({ value, label, accent }: { value: string; label: string; accent?:
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   topBar: {
     flexDirection: 'row',

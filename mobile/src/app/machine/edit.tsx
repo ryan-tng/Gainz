@@ -15,15 +15,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { pickFromLibrary, takePhoto } from '@/lib/images';
 import { MUSCLE_GROUPS, type MuscleGroup } from '@/lib/types';
 import { useMachines } from '@/store/machines';
+import { useTheme, useThemedStyles } from '@/store/theme';
 
 export default function MachineEditScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
   const { getMachine, addMachine, updateMachine } = useMachines();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const existing = id ? getMachine(id) : undefined;
 
   const [name, setName] = useState(existing?.name ?? '');
@@ -161,7 +164,8 @@ export default function MachineEditScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   topBar: {
     flexDirection: 'row',

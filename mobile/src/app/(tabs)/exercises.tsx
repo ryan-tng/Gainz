@@ -13,12 +13,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton, EmptyState, Loading } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { MUSCLE_GROUPS, type MuscleGroup } from '@/lib/types';
+import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
 
 export default function ExercisesScreen() {
   const { loaded, exercises, addCustomExercise } = useWorkouts();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<MuscleGroup | 'All'>('All');
   const [adding, setAdding] = useState(false);
@@ -121,6 +124,8 @@ function AddExerciseModal({
   onClose: () => void;
   onAdd: (name: string, muscle: MuscleGroup) => void;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup>('Chest');
 
@@ -177,7 +182,8 @@ function AddExerciseModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   header: {
     flexDirection: 'row',

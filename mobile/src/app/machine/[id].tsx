@@ -13,8 +13,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton, EmptyState } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { useMachines } from '@/store/machines';
+import { useTheme, useThemedStyles } from '@/store/theme';
 
 const { width } = Dimensions.get('window');
 const PHOTO_W = width - Spacing.four * 2;
@@ -23,6 +24,8 @@ export default function MachineDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getMachine, deleteMachine } = useMachines();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const machine = getMachine(id);
 
   if (!machine) {
@@ -122,6 +125,8 @@ function TopBar({
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.topBar}>
       <Pressable onPress={onBack} hitSlop={10}>
@@ -143,7 +148,8 @@ function TopBar({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   topBar: {
     flexDirection: 'row',

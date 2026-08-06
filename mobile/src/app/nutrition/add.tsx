@@ -15,8 +15,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { useNutrition } from '@/store/nutrition';
+import { useTheme, useThemedStyles } from '@/store/theme';
 
 const numOrNull = (t: string): number | null => {
   const cleaned = t.replace(/[^0-9.]/g, '');
@@ -32,6 +33,8 @@ export default function AddFoodScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { addEntry, updateEntry, deleteEntry, getEntry } = useNutrition();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const existing = id ? getEntry(id) : undefined;
 
   const [label, setLabel] = useState(existing?.label ?? '');
@@ -157,6 +160,8 @@ function MacroField({
   value: string;
   onChange: (t: string) => void;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.macroField}>
       <Text style={styles.macroLabel}>{label}</Text>
@@ -175,7 +180,8 @@ function MacroField({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   topBar: {
     flexDirection: 'row',

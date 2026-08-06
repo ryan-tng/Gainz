@@ -4,14 +4,17 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card, EmptyState, Loading, ScreenHeader } from '@/components/ui';
-import { palette, Spacing } from '@/constants/theme';
+import { Spacing, type Palette } from '@/constants/theme';
 import { formatDate, formatDuration, formatVolume } from '@/lib/format';
 import { sessionStats } from '@/lib/types';
+import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
 
 export default function HistoryScreen() {
   const router = useRouter();
   const { loaded, sessions } = useWorkouts();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   if (!loaded) return <Loading />;
 
@@ -64,6 +67,8 @@ export default function HistoryScreen() {
 }
 
 function Meta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.meta}>
       <Ionicons name={icon} size={14} color={palette.muted} />
@@ -72,7 +77,8 @@ function Meta({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: stri
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   content: { padding: Spacing.four, paddingBottom: Spacing.eight, gap: Spacing.three },
   card: { gap: Spacing.one },

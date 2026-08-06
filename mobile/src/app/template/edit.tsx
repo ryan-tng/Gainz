@@ -15,9 +15,10 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { TEMPLATE_COLORS, TEMPLATE_ICONS } from '@/lib/templates';
 import type { Exercise, TemplateExercise, TemplateSet } from '@/lib/types';
+import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
 
 const numOrNull = (t: string): number | null => {
@@ -32,6 +33,8 @@ export default function TemplateEditScreen() {
   const router = useRouter();
   const { exercises, getTemplate, addTemplate, updateTemplate, deleteTemplate, getLastPerformance } =
     useWorkouts();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const existing = id ? getTemplate(id) : undefined;
 
   const [name, setName] = useState(existing?.name ?? '');
@@ -300,6 +303,8 @@ function ExercisePicker({
   onClose: () => void;
   onConfirm: (picked: Exercise[]) => void;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -391,7 +396,8 @@ function ExercisePicker({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   topBar: {
     flexDirection: 'row',

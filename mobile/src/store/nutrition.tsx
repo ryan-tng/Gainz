@@ -8,8 +8,8 @@ import {
 } from 'react';
 
 import { computeGoal, type GoalInput } from '@/lib/nutrition';
-import { storage, uid } from '@/lib/storage';
-import type { FoodEntry, Goal } from '@/lib/types';
+import { storage, uid, type StoredCoachPlan } from '@/lib/storage';
+import type { CoachPlan, FoodEntry, Goal } from '@/lib/types';
 
 export interface NewFoodEntry {
   label: string;
@@ -24,6 +24,9 @@ interface NutritionContextValue {
   loaded: boolean;
   goal: Goal | null;
   entries: FoodEntry[];
+  /** The last generated AI coaching plan, persisted so it isn't re-fetched on open. */
+  coachPlan: CoachPlan | null;
+  coachPlanAt: number | null;
   setGoal: (input: GoalInput) => Goal;
   clearGoal: () => void;
   addEntry: (entry: NewFoodEntry) => void;
@@ -31,6 +34,7 @@ interface NutritionContextValue {
   deleteEntry: (id: string) => void;
   getEntry: (id: string) => FoodEntry | undefined;
   entriesForDay: (dayStartMs: number, dayEndMs: number) => FoodEntry[];
+  saveCoachPlan: (plan: CoachPlan) => void;
 }
 
 const NutritionContext = createContext<NutritionContextValue | null>(null);
@@ -39,12 +43,18 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
   const [goal, setGoalState] = useState<Goal | null>(null);
   const [entries, setEntries] = useState<FoodEntry[]>([]);
+  const [coach, setCoach] = useState<StoredCoachPlan | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [g, e] = await Promise.all([storage.loadGoal(), storage.loadFoodEntries()]);
+      const [g, e, c] = await Promise.all([
+        storage.loadGoal(),
+        storage.loadFoodEntries(),
+        storage.loadCoachPlan(),
+      ]);
       setGoalState(g);
       setEntries(e);
+      setCoach(c);
       setLoaded(true);
     })();
   }, []);
@@ -55,18 +65,29 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loaded) void storage.saveFoodEntries(entries);
   }, [entries, loaded]);
+  useEffect(() => {
+    if (loaded) void storage.saveCoachPlan(coach);
+  }, [coach, loaded]);
 
   const value = useMemo<NutritionContextValue>(
     () => ({
       loaded,
       goal,
       entries,
+      coachPlan: coach?.plan ?? null,
+      coachPlanAt: coach?.generatedAt ?? null,
       setGoal: (input) => {
         const computed = computeGoal(input);
         setGoalState(computed);
+        // The saved plan was built for the old numbers — drop it so a stale plan
+        // isn't shown. (It won't auto-regenerate; the user taps Generate again.)
+        setCoach(null);
         return computed;
       },
-      clearGoal: () => setGoalState(null),
+      clearGoal: () => {
+        setGoalState(null);
+        setCoach(null);
+      },
       addEntry: (entry) =>
         setEntries((cur) => [
           { ...entry, id: uid('food'), loggedAt: Date.now() },
@@ -78,8 +99,9 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
       getEntry: (id) => entries.find((e) => e.id === id),
       entriesForDay: (start, end) =>
         entries.filter((e) => e.loggedAt >= start && e.loggedAt < end),
+      saveCoachPlan: (plan) => setCoach({ plan, generatedAt: Date.now() }),
     }),
-    [loaded, goal, entries],
+    [loaded, goal, entries, coach],
   );
 
   return <NutritionContext.Provider value={value}>{children}</NutritionContext.Provider>;

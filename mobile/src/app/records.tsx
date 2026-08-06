@@ -4,14 +4,17 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card, EmptyState, Loading } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { formatDate, formatDuration, formatVolume } from '@/lib/format';
 import { computeRecords, type ExercisePR } from '@/lib/stats';
+import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
 
 export default function RecordsScreen() {
   const router = useRouter();
   const { loaded, sessions } = useWorkouts();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   if (!loaded) return <Loading />;
 
@@ -104,6 +107,8 @@ function Highlight({
   sub: string;
   full?: boolean;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Card style={[styles.highlight, full ? { flex: undefined } : { flex: 1 }]}>
       <View style={styles.highlightHead}>
@@ -119,6 +124,7 @@ function Highlight({
 }
 
 function PRCard({ pr }: { pr: ExercisePR }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <Card style={styles.prCard}>
       <View style={styles.prHead}>
@@ -144,6 +150,7 @@ function PRCard({ pr }: { pr: ExercisePR }) {
 }
 
 function PRStat({ label, value }: { label: string; value: string }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.prStat}>
       <Text style={styles.prStatValue}>{value}</Text>
@@ -152,7 +159,8 @@ function PRStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   topBar: {
     flexDirection: 'row',

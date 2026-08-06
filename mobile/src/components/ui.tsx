@@ -10,7 +10,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/store/theme';
 
 export function AppButton({
   label,
@@ -27,6 +28,8 @@ export function AppButton({
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const bg =
     variant === 'primary'
       ? palette.accent
@@ -63,10 +66,12 @@ export function Card({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const styles = useThemedStyles(makeStyles);
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
 export function ScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>{title}</Text>
@@ -84,6 +89,8 @@ export function EmptyState({
   title: string;
   body: string;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIcon}>
@@ -96,6 +103,8 @@ export function EmptyState({
 }
 
 export function Loading() {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.loading}>
       <ActivityIndicator color={palette.accent} />
@@ -104,6 +113,8 @@ export function Loading() {
 }
 
 export function Pill({ label, active }: { label: string; active?: boolean }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View
       style={[
@@ -115,7 +126,8 @@ export function Pill({ label, active }: { label: string; active?: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   btn: {
     flexDirection: 'row',
     alignItems: 'center',

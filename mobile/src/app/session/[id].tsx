@@ -4,15 +4,18 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card, EmptyState } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { formatDate, formatDuration, formatTime, formatVolume } from '@/lib/format';
 import { sessionStats } from '@/lib/types';
+import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
 
 export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { sessions, deleteSession } = useWorkouts();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const session = sessions.find((s) => s.id === id);
 
@@ -92,6 +95,8 @@ export default function SessionDetailScreen() {
 }
 
 function TopBar({ onBack, onDelete }: { onBack: () => void; onDelete: (() => void) | null }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.topBar}>
       <Pressable onPress={onBack} hitSlop={10}>
@@ -109,6 +114,7 @@ function TopBar({ onBack, onDelete }: { onBack: () => void; onDelete: (() => voi
 }
 
 function Stat({ value, label }: { value: string; label: string }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.stat}>
       <Text style={styles.statValue}>{value}</Text>
@@ -117,7 +123,8 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   centered: { flex: 1, justifyContent: 'center' },
   topBar: {

@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,11 +18,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExercisePickerModal } from '@/components/ExercisePickerModal';
 import { AppButton, Card, Loading } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { formatDate, formatVolume } from '@/lib/format';
 import { computeDashboard, computeRecords } from '@/lib/stats';
 import { sessionStats, type SetEntry, type WorkoutExercise, type WorkoutSession } from '@/lib/types';
+import { useProfile } from '@/store/profile';
+import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 const numOrNull = (t: string): number | null => {
   const cleaned = t.replace(/[^0-9.]/g, '');
@@ -84,6 +94,8 @@ function ActiveWorkoutHome({
   onMinimize: () => void;
 }) {
   const router = useRouter();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const {
     exercises,
     finishWorkout,
@@ -358,6 +370,8 @@ function ExerciseEditor({
   removeSet: (weId: string, setId: string) => void;
   setExerciseDone: (weId: string, done: boolean) => void;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const total = we.sets.length;
   const done = we.sets.filter((s) => s.done).length;
   const allDone = total > 0 && done === total;
@@ -461,6 +475,7 @@ function ExerciseEditor({
 }
 
 function Mini({ value, label, accent }: { value: string; label: string; accent?: string }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.mini}>
       <Text style={[styles.miniValue, accent ? { color: accent } : null]}>{value}</Text>
@@ -476,6 +491,9 @@ function Mini({ value, label, accent }: { value: string; label: string; accent?:
 function Dashboard({ onResumeView }: { onResumeView: () => void }) {
   const router = useRouter();
   const { active, sessions, templates, startWorkout, startFromTemplate } = useWorkouts();
+  const { profile } = useProfile();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const d = computeDashboard(sessions);
   const records = computeRecords(sessions);
@@ -510,11 +528,25 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.brandRow}>
-          <View style={styles.logo}>
-            <Ionicons name="barbell" size={20} color={palette.onAccent} />
-          </View>
-          <Text style={styles.brand}>Gainz</Text>
+        <View style={styles.profileRow}>
+          <Pressable style={styles.profileLeft} onPress={() => router.push('/settings')}>
+            <View style={styles.avatar}>
+              {profile?.avatarUri ? (
+                <Image source={{ uri: profile.avatarUri }} style={styles.avatarImg} />
+              ) : (
+                <Ionicons name="person" size={22} color={palette.muted} />
+              )}
+            </View>
+            <View>
+              <Text style={styles.greeting}>{greeting()}</Text>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {profile?.name || 'Athlete'}
+              </Text>
+            </View>
+          </Pressable>
+          <Pressable onPress={() => router.push('/settings')} hitSlop={8} style={styles.gearBtn}>
+            <Ionicons name="settings-outline" size={22} color={palette.muted} />
+          </Pressable>
         </View>
 
         {active ? <ResumeCard active={active} onPress={onResumeView} /> : null}
@@ -698,6 +730,8 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
 }
 
 function ResumeCard({ active, onPress }: { active: WorkoutSession; onPress: () => void }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const c = active.color ?? palette.accent;
   const ic = (active.icon ?? 'barbell') as keyof typeof Ionicons.glyphMap;
   const paused = active.pausedAt != null;
@@ -750,6 +784,8 @@ function Stat({
   unit: string;
   accent?: boolean;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.stat}>
       <Text style={[styles.statValue, accent && { color: palette.accent }]}>{value}</Text>
@@ -759,19 +795,36 @@ function Stat({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   content: { padding: Spacing.four, paddingBottom: Spacing.eight, gap: Spacing.four },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  logo: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.sm,
-    backgroundColor: palette.accent,
+  profileRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  profileLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flex: 1 },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.full,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: { width: 44, height: 44, borderRadius: Radius.full },
+  greeting: { color: palette.muted, fontSize: 13 },
+  profileName: { color: palette.fg, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  gearBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.full,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brand: { color: palette.fg, fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
 
   // --- Active takeover ---
   hero: {

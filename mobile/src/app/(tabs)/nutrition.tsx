@@ -4,13 +4,16 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton, Card, Loading } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { endOfDay, formatTime, startOfDay } from '@/lib/format';
 import { useNutrition } from '@/store/nutrition';
+import { useTheme, useThemedStyles } from '@/store/theme';
 
 export default function NutritionScreen() {
   const router = useRouter();
   const { loaded, goal, entriesForDay } = useNutrition();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   if (!loaded) return <Loading />;
 
@@ -138,6 +141,7 @@ export default function NutritionScreen() {
 }
 
 function Macro({ label, value, target }: { label: string; value: number; target: number }) {
+  const styles = useThemedStyles(makeStyles);
   const pct = target > 0 ? Math.min(1, value / target) : 0;
   return (
     <View style={styles.macro}>
@@ -152,7 +156,8 @@ function Macro({ label, value, target }: { label: string; value: number; target:
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   content: { padding: Spacing.four, paddingBottom: Spacing.eight, gap: Spacing.three },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

@@ -14,16 +14,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { computeGoal, weeksToGoal, type GoalInput } from '@/lib/nutrition';
 import { ACTIVITY_LEVELS, SEXES, type ActivityKey, type Sex } from '@/lib/types';
 import { useNutrition } from '@/store/nutrition';
+import { useTheme, useThemedStyles } from '@/store/theme';
 
 const RATES = [0.5, 1, 1.5, 2];
 
 export default function GoalScreen() {
   const router = useRouter();
   const { goal, setGoal } = useNutrition();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [sex, setSex] = useState<Sex>(goal?.sex ?? 'male');
   const [age, setAge] = useState(goal ? String(goal.age) : '');
@@ -174,6 +177,8 @@ function Field({
   onChange: (v: string) => void;
   suffix: string;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={{ flex: 1 }}>
       <Text style={styles.label}>{label}</Text>
@@ -192,7 +197,8 @@ function Field({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   topBar: {
     flexDirection: 'row',

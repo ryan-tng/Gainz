@@ -14,17 +14,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { analyzeFood } from '@/lib/foodApi';
 import { captureFoodPhoto } from '@/lib/images';
 import type { FoodAnalysis } from '@/lib/types';
 import { useNutrition } from '@/store/nutrition';
+import { useTheme, useThemedStyles } from '@/store/theme';
 
 type Phase = 'idle' | 'analyzing' | 'result' | 'error';
 
 export default function ScanScreen() {
   const router = useRouter();
   const { addEntry } = useNutrition();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -120,7 +123,7 @@ export default function ScanScreen() {
                 <MacroChip label="Carbs" value={analysis.total_carbs_g} />
                 <MacroChip label="Fat" value={analysis.total_fat_g} />
               </View>
-              <View style={[styles.confidence, confStyle(analysis.confidence)]}>
+              <View style={[styles.confidence, confStyle(palette, analysis.confidence)]}>
                 <Text style={styles.confidenceText}>{analysis.confidence} confidence</Text>
               </View>
             </View>
@@ -167,6 +170,7 @@ export default function ScanScreen() {
 }
 
 function MacroChip({ label, value }: { label: string; value: number }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.chip}>
       <Text style={styles.chipValue}>{Math.round(value)}g</Text>
@@ -175,13 +179,14 @@ function MacroChip({ label, value }: { label: string; value: number }) {
   );
 }
 
-function confStyle(c: FoodAnalysis['confidence']) {
+function confStyle(palette: Palette, c: FoodAnalysis['confidence']) {
   if (c === 'high') return { borderColor: palette.accent };
   if (c === 'medium') return { borderColor: palette.accent2 };
   return { borderColor: palette.muted };
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   topBar: {
     flexDirection: 'row',

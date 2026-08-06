@@ -14,13 +14,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState, Loading } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { MUSCLE_GROUPS, type MuscleGroup } from '@/lib/types';
 import { useMachines } from '@/store/machines';
+import { useTheme, useThemedStyles } from '@/store/theme';
 
 export default function MachinesScreen() {
   const router = useRouter();
   const { loaded, machines } = useMachines();
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<MuscleGroup | 'All'>('All');
 
@@ -116,7 +119,8 @@ export default function MachinesScreen() {
 
 const CARD_GAP = Spacing.three;
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   header: {
     flexDirection: 'row',

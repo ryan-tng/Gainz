@@ -4,8 +4,9 @@ import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui';
-import { palette, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { MUSCLE_GROUPS, type MuscleGroup } from '@/lib/types';
+import { useTheme, useThemedStyles } from '@/store/theme';
 
 /** Full-screen modal for picking one or more exercises to add to a workout/template. */
 export function ExercisePickerModal({
@@ -21,6 +22,8 @@ export function ExercisePickerModal({
   onClose: () => void;
   onConfirm: (ids: string[]) => void;
 }) {
+  const { palette } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<MuscleGroup | 'All'>('All');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -134,7 +137,8 @@ export function ExercisePickerModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: Palette) =>
+  StyleSheet.create({
   safe: { flex: 1, backgroundColor: palette.bg },
   topBar: {
     flexDirection: 'row',

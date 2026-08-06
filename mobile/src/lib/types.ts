@@ -18,6 +18,12 @@ export interface Exercise {
   isCustom?: boolean;
 }
 
+/** The app user's profile (local-only for now). */
+export interface Profile {
+  name: string;
+  avatarUri?: string;
+}
+
 /** A gym machine with a quick-access photo tutorial. */
 export interface Machine {
   id: string;

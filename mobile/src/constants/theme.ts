@@ -1,10 +1,25 @@
 /**
- * Gainz app theme — dark, athletic, lime/emerald accent, matching the waitlist
- * landing page. The app is dark-only for now (a strong single look).
+ * Gainz app theme. The app ships a dark and a light palette; the active one is
+ * resolved at runtime by the ThemeProvider (see src/store/theme.tsx), which also
+ * applies the user's chosen accent color. Components read the live palette via
+ * `useTheme()` and build their styles with a `makeStyles(palette)` factory.
  */
 import { Platform } from 'react-native';
 
-export const palette = {
+export interface Palette {
+  bg: string;
+  surface: string;
+  surface2: string;
+  border: string;
+  fg: string;
+  muted: string;
+  accent: string;
+  accent2: string;
+  danger: string;
+  onAccent: string;
+}
+
+export const darkPalette: Palette = {
   bg: '#08090b',
   surface: '#101216',
   surface2: '#171a20',
@@ -15,23 +30,62 @@ export const palette = {
   accent2: '#34d399',
   danger: '#f87171',
   onAccent: '#08090b',
-} as const;
+};
+
+export const lightPalette: Palette = {
+  bg: '#f6f7f9',
+  surface: '#ffffff',
+  surface2: '#eceef2',
+  border: '#dfe3e9',
+  fg: '#0d0f12',
+  muted: '#5b6472',
+  accent: '#4d7c0f', // deeper lime so it reads on white as fill *and* text
+  accent2: '#0f9d6b',
+  danger: '#dc2626',
+  onAccent: '#ffffff',
+};
+
+/** Accent colors the user can pick in Settings. */
+export const ACCENTS = [
+  '#a3e635', // lime (default)
+  '#34d399', // emerald
+  '#22d3ee', // cyan
+  '#60a5fa', // blue
+  '#a78bfa', // violet
+  '#f472b6', // pink
+  '#fb923c', // orange
+  '#f87171', // red
+] as const;
+
+/** Pick black/white text for a given accent background by luminance. */
+export function contrastOn(hex: string): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  // Perceived luminance (sRGB approximation).
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.6 ? '#08090b' : '#ffffff';
+}
+
+/** Default/fallback palette (dark). Used until the ThemeProvider mounts. */
+export const palette: Palette = darkPalette;
 
 // Kept for compatibility with any leftover template references.
 export const Colors = {
   light: {
-    text: palette.fg,
-    background: palette.bg,
-    backgroundElement: palette.surface,
-    backgroundSelected: palette.surface2,
-    textSecondary: palette.muted,
+    text: lightPalette.fg,
+    background: lightPalette.bg,
+    backgroundElement: lightPalette.surface,
+    backgroundSelected: lightPalette.surface2,
+    textSecondary: lightPalette.muted,
   },
   dark: {
-    text: palette.fg,
-    background: palette.bg,
-    backgroundElement: palette.surface,
-    backgroundSelected: palette.surface2,
-    textSecondary: palette.muted,
+    text: darkPalette.fg,
+    background: darkPalette.bg,
+    backgroundElement: darkPalette.surface,
+    backgroundSelected: darkPalette.surface2,
+    textSecondary: darkPalette.muted,
   },
 } as const;
 
