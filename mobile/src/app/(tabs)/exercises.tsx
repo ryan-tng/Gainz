@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
@@ -20,6 +21,7 @@ import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
 
 export default function ExercisesScreen() {
+  const router = useRouter();
   const { loaded, exercises, addCustomExercise } = useWorkouts();
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -92,7 +94,7 @@ export default function ExercisesScreen() {
           />
         }
         renderItem={({ item }) => (
-          <View style={styles.row}>
+          <Pressable style={styles.row} onPress={() => router.push(`/exercise/${item.id}`)}>
             <View style={styles.rowIcon}>
               <Ionicons name="barbell-outline" size={18} color={palette.accent} />
             </View>
@@ -101,7 +103,8 @@ export default function ExercisesScreen() {
               <Text style={styles.rowMuscle}>{item.muscle}</Text>
             </View>
             {item.isCustom ? <Text style={styles.customTag}>Custom</Text> : null}
-          </View>
+            <Ionicons name="chevron-forward" size={16} color={palette.muted} />
+          </Pressable>
         )}
       />
 

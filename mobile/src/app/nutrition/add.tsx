@@ -32,17 +32,28 @@ const s = (n: number | undefined) => (n ? String(Math.round(n)) : '');
 
 export default function AddFoodScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // `id` = editing an existing entry. The rest are prefill params from a
+  // food-database / barcode result for a brand-new entry.
+  const params = useLocalSearchParams<{
+    id?: string;
+    label?: string;
+    calories?: string;
+    protein?: string;
+    carbs?: string;
+    fat?: string;
+  }>();
   const { addEntry, updateEntry, deleteEntry, getEntry } = useNutrition();
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const existing = id ? getEntry(id) : undefined;
+  const existing = params.id ? getEntry(params.id) : undefined;
 
-  const [label, setLabel] = useState(existing?.label ?? '');
-  const [calories, setCalories] = useState(existing ? String(existing.calories) : '');
-  const [protein, setProtein] = useState(s(existing?.protein_g));
-  const [carbs, setCarbs] = useState(s(existing?.carbs_g));
-  const [fat, setFat] = useState(s(existing?.fat_g));
+  const [label, setLabel] = useState(existing?.label ?? params.label ?? '');
+  const [calories, setCalories] = useState(
+    existing ? String(existing.calories) : (params.calories ?? ''),
+  );
+  const [protein, setProtein] = useState(existing ? s(existing.protein_g) : (params.protein ?? ''));
+  const [carbs, setCarbs] = useState(existing ? s(existing.carbs_g) : (params.carbs ?? ''));
+  const [fat, setFat] = useState(existing ? s(existing.fat_g) : (params.fat ?? ''));
 
   const cals = numOrNull(calories);
   const canSave = label.trim().length > 0 && cals !== null && cals >= 0;

@@ -24,6 +24,13 @@ export interface Profile {
   avatarUri?: string;
 }
 
+/** A logged body-weight measurement. */
+export interface BodyWeightEntry {
+  id: string;
+  loggedAt: number; // epoch ms
+  weightLb: number;
+}
+
 /** A gym machine with a quick-access photo tutorial. */
 export interface Machine {
   id: string;

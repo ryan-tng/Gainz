@@ -87,10 +87,17 @@ export default function NutritionScreen() {
           </Card>
         )}
 
+        <AppButton
+          label="Search foods"
+          icon="search"
+          onPress={() => router.push('/nutrition/search')}
+          style={{ marginTop: Spacing.one }}
+        />
         <View style={styles.logRow}>
           <AppButton
             label="Scan food"
             icon="camera"
+            variant="secondary"
             onPress={() => router.push('/nutrition/scan')}
             style={styles.logBtn}
           />

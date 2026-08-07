@@ -3,7 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
@@ -11,12 +12,24 @@ import { AppButton } from '@/components/ui';
 import { ACCENTS, GRADIENTS, Radius, Spacing, type Palette } from '@/constants/theme';
 import { pickFromLibrary } from '@/lib/images';
 import { storage } from '@/lib/storage';
+import { backupToCloud, restoreFromCloud } from '@/lib/sync';
+import { useAuth } from '@/store/auth';
+import { useNutrition } from '@/store/nutrition';
+import { useRestTimer } from '@/store/restTimer';
 import { useTheme, useThemedStyles, type ThemeMode } from '@/store/theme';
 
 const THEME_MODES: { key: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'light', label: 'Light', icon: 'sunny-outline' },
   { key: 'dark', label: 'Dark', icon: 'moon-outline' },
   { key: 'system', label: 'System', icon: 'phone-portrait-outline' },
+];
+
+const REST_PRESETS: { s: number; label: string }[] = [
+  { s: 30, label: '30s' },
+  { s: 60, label: '1m' },
+  { s: 90, label: '1m 30s' },
+  { s: 120, label: '2m' },
+  { s: 180, label: '3m' },
 ];
 
 export default function SettingsScreen() {
@@ -33,7 +46,53 @@ export default function SettingsScreen() {
     addSavedBackground,
     removeSavedBackground,
   } = useTheme();
+  const { coachName, setCoachName } = useNutrition();
+  const { defaultSeconds, setDefaultSeconds } = useRestTimer();
+  const { configured, user, signOut } = useAuth();
   const styles = useThemedStyles(makeStyles);
+  const [coachNameDraft, setCoachNameDraft] = useState(coachName);
+  const [syncing, setSyncing] = useState(false);
+
+  const backup = async () => {
+    setSyncing(true);
+    try {
+      await backupToCloud();
+      Alert.alert('Backed up', 'Your data is safely saved to the cloud.');
+    } catch (e) {
+      Alert.alert('Backup failed', e instanceof Error ? e.message : 'Please try again.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const restore = () => {
+    Alert.alert(
+      'Restore from cloud?',
+      'This replaces the data on this device with your cloud backup. Fully reload the app afterward to see it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          onPress: async () => {
+            setSyncing(true);
+            try {
+              const ok = await restoreFromCloud();
+              Alert.alert(
+                ok ? 'Restored' : 'No backup',
+                ok
+                  ? 'Fully reload the app (shake → Reload, or restart it) to see your restored data.'
+                  : 'No cloud backup was found for this account yet.',
+              );
+            } catch (e) {
+              Alert.alert('Restore failed', e instanceof Error ? e.message : 'Please try again.');
+            } finally {
+              setSyncing(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const pickBackgroundPhoto = async () => {
     const uri = await pickFromLibrary();
@@ -84,6 +143,52 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Account */}
+        <Text style={styles.sectionLabel}>Account</Text>
+        {!configured ? (
+          <Text style={styles.hint}>Cloud accounts aren&apos;t configured in this build yet.</Text>
+        ) : user ? (
+          <>
+            <View style={styles.rowCard}>
+              <Text style={styles.rowLabel}>Signed in</Text>
+              <Text style={styles.rowValue} numberOfLines={1}>
+                {user.email}
+              </Text>
+            </View>
+            <AppButton
+              label={syncing ? 'Working…' : 'Back up now'}
+              icon="cloud-upload-outline"
+              onPress={backup}
+              disabled={syncing}
+              style={{ marginTop: Spacing.two }}
+            />
+            <AppButton
+              label="Restore from cloud"
+              icon="cloud-download-outline"
+              variant="secondary"
+              onPress={restore}
+              disabled={syncing}
+              style={{ marginTop: Spacing.two }}
+            />
+            <AppButton
+              label="Sign out"
+              icon="log-out-outline"
+              variant="ghost"
+              onPress={signOut}
+              style={{ marginTop: Spacing.two }}
+            />
+          </>
+        ) : (
+          <>
+            <AppButton
+              label="Sign in / Create account"
+              icon="cloud-outline"
+              onPress={() => router.push('/auth')}
+            />
+            <Text style={styles.hint}>Back up your data and sync it to a new phone.</Text>
+          </>
+        )}
+
         {/* Appearance */}
         <Text style={styles.sectionLabel}>Appearance</Text>
         <View style={styles.segment}>
@@ -196,6 +301,37 @@ export default function SettingsScreen() {
             <Text style={styles.hint}>Darken the background so text stays readable. 0% shows it raw.</Text>
           </View>
         ) : null}
+
+        {/* Workout */}
+        <Text style={styles.sectionLabel}>Rest timer</Text>
+        <View style={styles.restRow}>
+          {REST_PRESETS.map((p) => {
+            const on = defaultSeconds === p.s;
+            return (
+              <Pressable
+                key={p.s}
+                onPress={() => setDefaultSeconds(p.s)}
+                style={[styles.restPill, on && styles.restPillOn]}>
+                <Text style={[styles.restPillText, on && styles.restPillTextOn]}>{p.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.hint}>Auto-starts after you complete a set. Tap −15/+15 or Skip on the timer.</Text>
+
+        {/* AI Coach */}
+        <Text style={styles.sectionLabel}>AI Coach</Text>
+        <TextInput
+          style={styles.input}
+          value={coachNameDraft}
+          onChangeText={setCoachNameDraft}
+          onEndEditing={() => setCoachName(coachNameDraft)}
+          onBlur={() => setCoachName(coachNameDraft)}
+          placeholder="AI Coach"
+          placeholderTextColor={palette.muted}
+          returnKeyType="done"
+        />
+        <Text style={styles.hint}>Rename your nutrition coach (e.g. &quot;Coach Mike&quot;).</Text>
 
         {/* About */}
         <Text style={styles.sectionLabel}>About</Text>
@@ -326,5 +462,27 @@ const makeStyles = (palette: Palette) =>
     },
     rowLabel: { color: palette.fg, fontSize: 15 },
     rowValue: { color: palette.muted, fontSize: 15 },
+    input: {
+      color: palette.fg,
+      fontSize: 16,
+      backgroundColor: palette.surface,
+      borderColor: palette.border,
+      borderWidth: 1,
+      borderRadius: Radius.md,
+      paddingHorizontal: Spacing.three,
+      paddingVertical: Spacing.three,
+    },
+    restRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+    restPill: {
+      paddingHorizontal: Spacing.four,
+      paddingVertical: Spacing.two + 2,
+      borderRadius: Radius.full,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+    },
+    restPillOn: { backgroundColor: palette.accent, borderColor: palette.accent },
+    restPillText: { color: palette.muted, fontSize: 14, fontWeight: '700' },
+    restPillTextOn: { color: palette.onAccent },
     hint: { color: palette.muted, fontSize: 12, lineHeight: 18, marginTop: Spacing.three },
   });

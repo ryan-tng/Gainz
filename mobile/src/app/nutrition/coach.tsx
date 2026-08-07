@@ -30,7 +30,7 @@ function feasibilityMeta(palette: Palette): Record<CoachPlan['feasibility'], Fea
 
 export default function CoachScreen() {
   const router = useRouter();
-  const { goal, entries, coachPlan, coachPlanAt, saveCoachPlan } = useNutrition();
+  const { goal, entries, coachPlan, coachPlanAt, saveCoachPlan, coachName } = useNutrition();
   const { sessions } = useWorkouts();
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -85,7 +85,9 @@ export default function CoachScreen() {
         <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={26} color={palette.fg} />
         </Pressable>
-        <Text style={styles.topTitle}>AI Coach</Text>
+        <Text style={styles.topTitle} numberOfLines={1}>
+          {coachName}
+        </Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -132,7 +134,7 @@ export default function CoachScreen() {
             {loading ? (
               <Card style={styles.loadingCard}>
                 <ActivityIndicator color={palette.accent} />
-                <Text style={styles.loadingText}>Your coach is reviewing your data…</Text>
+                <Text style={styles.loadingText}>{coachName} is reviewing your data…</Text>
               </Card>
             ) : null}
 

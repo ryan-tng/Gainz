@@ -112,6 +112,37 @@ function oneRepMax(weight: number, reps: number): number {
   return Math.round(weight * (1 + reps / 30));
 }
 
+export interface ExercisePoint {
+  at: number;
+  oneRM: number;
+  volume: number;
+  topWeight: number;
+}
+
+/** Per-session progress for one exercise, oldest → newest. */
+export function exerciseHistory(sessions: WorkoutSession[], exerciseId: string): ExercisePoint[] {
+  const points: ExercisePoint[] = [];
+  for (const s of sessions) {
+    const we = s.exercises.find((w) => w.exerciseId === exerciseId);
+    if (!we) continue;
+    let best1RM = 0;
+    let volume = 0;
+    let topWeight = 0;
+    for (const set of we.sets) {
+      if (!set.done) continue;
+      const w = set.weight ?? 0;
+      const r = set.reps ?? 0;
+      if (w <= 0 || r <= 0) continue;
+      const est = oneRepMax(w, r);
+      if (est > best1RM) best1RM = est;
+      if (w > topWeight) topWeight = w;
+      volume += w * r;
+    }
+    if (best1RM > 0) points.push({ at: s.finishedAt ?? s.startedAt, oneRM: best1RM, volume, topWeight });
+  }
+  return points.reverse(); // sessions are newest-first; return chronological
+}
+
 /** Compute all-time personal records from finished sessions. */
 export function computeRecords(sessions: WorkoutSession[]): Records {
   const map = new Map<string, ExercisePR>();

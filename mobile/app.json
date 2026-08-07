@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gainz",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "backgroundColor": "#08090b",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -40,6 +40,12 @@
         {
           "photosPermission": "Gainz uses your photos to add pictures and tutorials to gym machines.",
           "cameraPermission": "Gainz uses your camera to take photos of gym machines and their instructions."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Gainz uses your camera to scan food barcodes."
         }
       ]
     ],

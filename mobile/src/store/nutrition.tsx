@@ -20,6 +20,8 @@ export interface NewFoodEntry {
   photoUri?: string;
 }
 
+const DEFAULT_COACH_NAME = 'AI Coach';
+
 interface NutritionContextValue {
   loaded: boolean;
   goal: Goal | null;
@@ -27,6 +29,9 @@ interface NutritionContextValue {
   /** The last generated AI coaching plan, persisted so it isn't re-fetched on open. */
   coachPlan: CoachPlan | null;
   coachPlanAt: number | null;
+  /** Customizable name for the AI coach (e.g. "Coach Mike"). */
+  coachName: string;
+  setCoachName: (name: string) => void;
   setGoal: (input: GoalInput) => Goal;
   clearGoal: () => void;
   addEntry: (entry: NewFoodEntry) => void;
@@ -44,17 +49,20 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
   const [goal, setGoalState] = useState<Goal | null>(null);
   const [entries, setEntries] = useState<FoodEntry[]>([]);
   const [coach, setCoach] = useState<StoredCoachPlan | null>(null);
+  const [coachName, setCoachNameState] = useState(DEFAULT_COACH_NAME);
 
   useEffect(() => {
     (async () => {
-      const [g, e, c] = await Promise.all([
+      const [g, e, c, name] = await Promise.all([
         storage.loadGoal(),
         storage.loadFoodEntries(),
         storage.loadCoachPlan(),
+        storage.loadCoachName(),
       ]);
       setGoalState(g);
       setEntries(e);
       setCoach(c);
+      if (name) setCoachNameState(name);
       setLoaded(true);
     })();
   }, []);
@@ -68,6 +76,9 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loaded) void storage.saveCoachPlan(coach);
   }, [coach, loaded]);
+  useEffect(() => {
+    if (loaded) void storage.saveCoachName(coachName);
+  }, [coachName, loaded]);
 
   const value = useMemo<NutritionContextValue>(
     () => ({
@@ -76,6 +87,8 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
       entries,
       coachPlan: coach?.plan ?? null,
       coachPlanAt: coach?.generatedAt ?? null,
+      coachName,
+      setCoachName: (name) => setCoachNameState(name.trim() || DEFAULT_COACH_NAME),
       setGoal: (input) => {
         const computed = computeGoal(input);
         setGoalState(computed);
@@ -101,7 +114,7 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
         entries.filter((e) => e.loggedAt >= start && e.loggedAt < end),
       saveCoachPlan: (plan) => setCoach({ plan, generatedAt: Date.now() }),
     }),
-    [loaded, goal, entries, coach],
+    [loaded, goal, entries, coach, coachName],
   );
 
   return <NutritionContext.Provider value={value}>{children}</NutritionContext.Provider>;

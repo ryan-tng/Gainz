@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -22,8 +23,15 @@ import { AppButton, Card, Loading } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { formatDate, formatVolume } from '@/lib/format';
 import { computeDashboard, computeRecords } from '@/lib/stats';
-import { sessionStats, type SetEntry, type WorkoutExercise, type WorkoutSession } from '@/lib/types';
+import {
+  sessionStats,
+  type SetEntry,
+  type TemplateSet,
+  type WorkoutExercise,
+  type WorkoutSession,
+} from '@/lib/types';
 import { useProfile } from '@/store/profile';
+import { useRestTimer } from '@/store/restTimer';
 import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
 
@@ -42,7 +50,7 @@ const numOrNull = (t: string): number | null => {
 };
 
 /** Compact "135×8 · 135×8" summary of an exercise's sets. */
-function setsSummary(sets: SetEntry[]): string | null {
+function setsSummary(sets: { weight: number | null; reps: number | null }[]): string | null {
   const parts = sets
     .map((s) => {
       if (s.weight !== null && s.reps !== null) return `${s.weight}×${s.reps}`;
@@ -108,11 +116,16 @@ function ActiveWorkoutHome({
     setExerciseDone,
     addExercisesToActive,
     removeWorkoutExercise,
+    getLastPerformance,
   } = useWorkouts();
+  const { startRest } = useRestTimer();
   const [now, setNow] = useState(Date.now());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const editing = active.exercises.find((e) => e.id === editingId) ?? null;
+
+  // Keep the screen on while logging a workout.
+  useKeepAwake();
 
   // Tick the elapsed timer once a second.
   useEffect(() => {
@@ -318,11 +331,13 @@ function ActiveWorkoutHome({
           <ExerciseEditor
             we={editing}
             color={color}
+            last={getLastPerformance(editing.exerciseId) ?? []}
             onClose={() => setEditingId(null)}
             onRemove={() => {
               removeWorkoutExercise(editing.id);
               setEditingId(null);
             }}
+            onSetDone={() => startRest()}
             updateSet={updateSet}
             addSet={addSet}
             removeSet={removeSet}
@@ -352,8 +367,10 @@ function ActiveWorkoutHome({
 function ExerciseEditor({
   we,
   color,
+  last,
   onClose,
   onRemove,
+  onSetDone,
   updateSet,
   addSet,
   removeSet,
@@ -361,8 +378,10 @@ function ExerciseEditor({
 }: {
   we: WorkoutExercise;
   color: string;
+  last: TemplateSet[];
   onClose: () => void;
   onRemove: () => void;
+  onSetDone: () => void;
   updateSet: (
     weId: string,
     setId: string,
@@ -377,6 +396,7 @@ function ExerciseEditor({
   const total = we.sets.length;
   const done = we.sets.filter((s) => s.done).length;
   const allDone = total > 0 && done === total;
+  const lastSummary = last.length ? setsSummary(last) : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -400,6 +420,13 @@ function ExerciseEditor({
           contentContainerStyle={styles.editContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
+          {lastSummary ? (
+            <View style={styles.lastRow}>
+              <Ionicons name="time-outline" size={13} color={palette.muted} />
+              <Text style={styles.lastText}>Last time: {lastSummary}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.setHeadRow}>
             <Text style={[styles.setHeadText, styles.colSet]}>Set</Text>
             <Text style={[styles.setHeadText, styles.colInput]}>lb</Text>
@@ -407,36 +434,43 @@ function ExerciseEditor({
             <Text style={[styles.setHeadText, styles.colDone]}>✓</Text>
           </View>
 
-          {we.sets.map((s, i) => (
-            <View key={s.id} style={styles.editSetRow}>
-              <Text style={[styles.setIndex, styles.colSet]}>{i + 1}</Text>
-              <TextInput
-                style={[styles.setInput, styles.colInput]}
-                keyboardType="numeric"
-                placeholder="—"
-                placeholderTextColor={palette.muted}
-                value={s.weight === null ? '' : String(s.weight)}
-                onChangeText={(t) => updateSet(we.id, s.id, { weight: numOrNull(t) })}
-              />
-              <TextInput
-                style={[styles.setInput, styles.colInput]}
-                keyboardType="numeric"
-                placeholder="—"
-                placeholderTextColor={palette.muted}
-                value={s.reps === null ? '' : String(s.reps)}
-                onChangeText={(t) => updateSet(we.id, s.id, { reps: numOrNull(t) })}
-              />
-              <Pressable
-                style={[styles.colDone, styles.checkWrap]}
-                onPress={() => updateSet(we.id, s.id, { done: !s.done })}
-                onLongPress={() => removeSet(we.id, s.id)}>
-                <View
-                  style={[styles.check, s.done && { backgroundColor: color, borderColor: color }]}>
-                  {s.done ? <Ionicons name="checkmark" size={16} color={palette.onAccent} /> : null}
-                </View>
-              </Pressable>
-            </View>
-          ))}
+          {we.sets.map((s, i) => {
+            const prev = last[i];
+            return (
+              <View key={s.id} style={styles.editSetRow}>
+                <Text style={[styles.setIndex, styles.colSet]}>{i + 1}</Text>
+                <TextInput
+                  style={[styles.setInput, styles.colInput]}
+                  keyboardType="numeric"
+                  placeholder={prev?.weight != null ? String(prev.weight) : '—'}
+                  placeholderTextColor={palette.muted}
+                  value={s.weight === null ? '' : String(s.weight)}
+                  onChangeText={(t) => updateSet(we.id, s.id, { weight: numOrNull(t) })}
+                />
+                <TextInput
+                  style={[styles.setInput, styles.colInput]}
+                  keyboardType="numeric"
+                  placeholder={prev?.reps != null ? String(prev.reps) : '—'}
+                  placeholderTextColor={palette.muted}
+                  value={s.reps === null ? '' : String(s.reps)}
+                  onChangeText={(t) => updateSet(we.id, s.id, { reps: numOrNull(t) })}
+                />
+                <Pressable
+                  style={[styles.colDone, styles.checkWrap]}
+                  onPress={() => {
+                    const next = !s.done;
+                    updateSet(we.id, s.id, { done: next });
+                    if (next) onSetDone(); // start rest when a set is completed
+                  }}
+                  onLongPress={() => removeSet(we.id, s.id)}>
+                  <View
+                    style={[styles.check, s.done && { backgroundColor: color, borderColor: color }]}>
+                    {s.done ? <Ionicons name="checkmark" size={16} color={palette.onAccent} /> : null}
+                  </View>
+                </Pressable>
+              </View>
+            );
+          })}
 
           <Pressable style={styles.addSet} onPress={() => addSet(we.id)}>
             <Ionicons name="add" size={16} color={palette.accent} />
@@ -602,7 +636,7 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
               </Pressable>
             </View>
             {topPRs.map((pr) => (
-              <Pressable key={pr.exerciseId} onPress={() => router.push('/records')}>
+              <Pressable key={pr.exerciseId} onPress={() => router.push(`/exercise/${pr.exerciseId}`)}>
                 <Card style={styles.prRow}>
                   <View style={styles.prMedal}>
                     <Ionicons name="trophy" size={16} color={palette.accent} />
@@ -929,6 +963,17 @@ const makeStyles = (palette: Palette) =>
   editSubtitle: { color: palette.muted, fontSize: 13, marginTop: 1 },
   editDone: { fontSize: 16, fontWeight: '800' },
   editContent: { padding: Spacing.four, paddingBottom: Spacing.eight },
+  lastRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one + 2,
+    backgroundColor: palette.surface2,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    marginBottom: Spacing.three,
+  },
+  lastText: { color: palette.muted, fontSize: 13, fontWeight: '600', flex: 1 },
   setHeadRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingBottom: Spacing.two },
   setHeadText: { color: palette.muted, fontSize: 12, fontWeight: '700', textAlign: 'center' },
   colSet: { width: 36, textAlign: 'center' },

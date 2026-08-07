@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
@@ -84,7 +84,11 @@ export default function RecordsScreen() {
               Log weight × reps on your sets to build per-exercise records.
             </Text>
           ) : (
-            r.exercises.map((pr) => <PRCard key={pr.exerciseId} pr={pr} />)
+            r.exercises.map((pr) => (
+              <Pressable key={pr.exerciseId} onPress={() => router.push(`/exercise/${pr.exerciseId}`)}>
+                <PRCard pr={pr} />
+              </Pressable>
+            ))
           )}
 
           <Text style={styles.disclaimer}>

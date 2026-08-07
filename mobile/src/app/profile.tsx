@@ -16,21 +16,45 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
+import { LineChart } from '@/components/LineChart';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { formatDate } from '@/lib/format';
 import { pickFromLibrary, takePhoto } from '@/lib/images';
 import { useProfile } from '@/store/profile';
 import { useTheme, useThemedStyles } from '@/store/theme';
 
+const numOrNull = (t: string): number | null => {
+  const cleaned = t.replace(/[^0-9.]/g, '');
+  if (cleaned === '') return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, setProfile } = useProfile();
+  const { profile, setProfile, bodyWeights, addBodyWeight, deleteBodyWeight } = useProfile();
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
   const [name, setName] = useState(profile?.name ?? '');
   const [avatarUri, setAvatarUri] = useState<string | undefined>(profile?.avatarUri);
+  const [weightInput, setWeightInput] = useState('');
 
   const canSave = name.trim().length > 0;
+
+  const logWeight = () => {
+    const w = numOrNull(weightInput);
+    if (w === null || w <= 0) return;
+    addBodyWeight(w);
+    setWeightInput('');
+  };
+
+  // Chronological (oldest → newest) for the trend line.
+  const chrono = [...bodyWeights].reverse();
+  const values = chrono.map((e) => e.weightLb);
+  const latest = bodyWeights[0]?.weightLb ?? null;
+  const high = values.length ? Math.max(...values) : null;
+  const low = values.length ? Math.min(...values) : null;
 
   const save = () => {
     if (!canSave) return;
@@ -107,6 +131,70 @@ export default function ProfileScreen() {
             placeholder="Your name"
             placeholderTextColor={palette.muted}
           />
+
+          {/* Body weight */}
+          <Text style={styles.sectionLabel}>Body weight</Text>
+          <View style={styles.bwAddRow}>
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              value={weightInput}
+              onChangeText={setWeightInput}
+              placeholder="Today's weight (lb)"
+              placeholderTextColor={palette.muted}
+              keyboardType="numeric"
+              returnKeyType="done"
+              onSubmitEditing={logWeight}
+            />
+            <Pressable
+              onPress={logWeight}
+              disabled={numOrNull(weightInput) === null}
+              style={[styles.logBtn, numOrNull(weightInput) === null && { opacity: 0.5 }]}>
+              <Text style={styles.logBtnText}>Log</Text>
+            </Pressable>
+          </View>
+
+          {values.length === 0 ? (
+            <Text style={styles.bwEmpty}>Log your weight to see your trend over time.</Text>
+          ) : (
+            <>
+              <View style={styles.bwStats}>
+                <View style={styles.bwStat}>
+                  <Text style={[styles.bwStatValue, { color: palette.accent }]}>{latest} lb</Text>
+                  <Text style={styles.bwStatLabel}>Current</Text>
+                </View>
+                <View style={styles.bwStat}>
+                  <Text style={styles.bwStatValue}>{high} lb</Text>
+                  <Text style={styles.bwStatLabel}>High</Text>
+                </View>
+                <View style={styles.bwStat}>
+                  <Text style={styles.bwStatValue}>{low} lb</Text>
+                  <Text style={styles.bwStatLabel}>Low</Text>
+                </View>
+              </View>
+
+              {values.length > 1 ? (
+                <View style={styles.chartCard}>
+                  <LineChart
+                    values={values}
+                    labels={[
+                      formatDate(chrono[0].loggedAt),
+                      formatDate(chrono[chrono.length - 1].loggedAt),
+                    ]}
+                  />
+                </View>
+              ) : null}
+
+              {bodyWeights.slice(0, 6).map((e) => (
+                <View key={e.id} style={styles.bwRow}>
+                  <Text style={styles.bwRowWeight}>{e.weightLb} lb</Text>
+                  <Text style={styles.bwRowDate}>{formatDate(e.loggedAt)}</Text>
+                  <Pressable onPress={() => deleteBodyWeight(e.id)} hitSlop={8}>
+                    <Ionicons name="close-circle" size={20} color={palette.muted} />
+                  </Pressable>
+                </View>
+              ))}
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -175,4 +263,53 @@ const makeStyles = (palette: Palette) =>
       paddingHorizontal: Spacing.three,
       paddingVertical: Spacing.three,
     },
+
+    sectionLabel: {
+      color: palette.muted,
+      fontSize: 13,
+      fontWeight: '700',
+      marginTop: Spacing.five,
+      marginBottom: Spacing.two,
+    },
+    bwAddRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'stretch' },
+    logBtn: {
+      backgroundColor: palette.accent,
+      borderRadius: Radius.md,
+      paddingHorizontal: Spacing.five,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    logBtnText: { color: palette.onAccent, fontSize: 15, fontWeight: '800' },
+    bwEmpty: { color: palette.muted, fontSize: 14, marginTop: Spacing.three, lineHeight: 20 },
+    bwStats: { flexDirection: 'row', gap: Spacing.three, marginTop: Spacing.four },
+    bwStat: {
+      flex: 1,
+      backgroundColor: palette.surface,
+      borderColor: palette.border,
+      borderWidth: 1,
+      borderRadius: Radius.md,
+      padding: Spacing.three,
+      alignItems: 'center',
+      gap: 2,
+    },
+    bwStatValue: { color: palette.fg, fontSize: 18, fontWeight: '800' },
+    bwStatLabel: { color: palette.muted, fontSize: 12 },
+    chartCard: {
+      backgroundColor: palette.surface,
+      borderColor: palette.border,
+      borderWidth: 1,
+      borderRadius: Radius.lg,
+      padding: Spacing.four,
+      marginTop: Spacing.three,
+    },
+    bwRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.three,
+      paddingVertical: Spacing.three,
+      borderTopColor: palette.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    bwRowWeight: { color: palette.fg, fontSize: 15, fontWeight: '700', flex: 1 },
+    bwRowDate: { color: palette.muted, fontSize: 13 },
   });
