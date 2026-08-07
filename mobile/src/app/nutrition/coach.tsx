@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { AppButton, Card } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { getCoachPlan } from '@/lib/coachApi';
@@ -78,7 +79,8 @@ export default function CoachScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+      <AppBackground />
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={26} color={palette.fg} />

@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { AppButton, Card, Loading } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { endOfDay, formatTime, startOfDay } from '@/lib/format';
@@ -29,7 +30,8 @@ export default function NutritionScreen() {
   const over = target > 0 && consumed > target;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top']}>
+      <AppBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Nutrition</Text>

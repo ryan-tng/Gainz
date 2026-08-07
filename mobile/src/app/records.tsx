@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { Card, EmptyState, Loading } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { formatDate, formatDuration, formatVolume } from '@/lib/format';
@@ -22,7 +23,8 @@ export default function RecordsScreen() {
   const hasAny = r.totalPRs > 0 || r.heaviestLift !== null;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+      <AppBackground />
       <View style={styles.topBar}>
         <View style={styles.backBtn}>
           <Ionicons

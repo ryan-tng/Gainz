@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { Card, EmptyState, Loading, ScreenHeader } from '@/components/ui';
 import { Spacing, type Palette } from '@/constants/theme';
 import { formatDate, formatDuration, formatVolume } from '@/lib/format';
@@ -19,7 +20,8 @@ export default function HistoryScreen() {
   if (!loaded) return <Loading />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top']}>
+      <AppBackground />
       <FlatList
         data={sessions}
         keyExtractor={(s) => s.id}

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { AppButton, EmptyState, Loading } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { MUSCLE_GROUPS, type MuscleGroup } from '@/lib/types';
@@ -37,7 +38,8 @@ export default function ExercisesScreen() {
   if (!loaded) return <Loading />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top']}>
+      <AppBackground />
       <View style={styles.header}>
         <Text style={styles.title}>Exercises</Text>
         <Pressable style={styles.addBtn} onPress={() => setAdding(true)}>

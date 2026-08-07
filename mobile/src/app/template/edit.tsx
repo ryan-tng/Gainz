@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { TEMPLATE_COLORS, TEMPLATE_ICONS } from '@/lib/templates';
@@ -123,7 +124,8 @@ export default function TemplateEditScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+      <AppBackground />
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.side}>
           <Text style={styles.cancel}>Cancel</Text>

@@ -13,6 +13,7 @@ import {
   contrastOn,
   darkPalette,
   lightPalette,
+  type AppBackground,
   type Palette,
 } from '@/constants/theme';
 import { storage } from '@/lib/storage';
@@ -22,9 +23,16 @@ export type ThemeMode = 'dark' | 'light' | 'system';
 export interface ThemePrefs {
   mode: ThemeMode;
   accent: string;
+  background: AppBackground;
+  savedBackgrounds: string[];
 }
 
-const DEFAULT_PREFS: ThemePrefs = { mode: 'dark', accent: ACCENTS[0] };
+const DEFAULT_PREFS: ThemePrefs = {
+  mode: 'dark',
+  accent: ACCENTS[0],
+  background: { type: 'none' },
+  savedBackgrounds: [],
+};
 
 interface ThemeContextValue {
   loaded: boolean;
@@ -34,8 +42,13 @@ interface ThemeContextValue {
   isDark: boolean;
   mode: ThemeMode;
   accent: string;
+  background: AppBackground;
+  savedBackgrounds: string[];
   setMode: (mode: ThemeMode) => void;
   setAccent: (accent: string) => void;
+  setBackground: (background: AppBackground) => void;
+  addSavedBackground: (uri: string) => void;
+  removeSavedBackground: (uri: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -71,8 +84,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       isDark,
       mode: prefs.mode,
       accent: prefs.accent,
+      background: prefs.background,
+      savedBackgrounds: prefs.savedBackgrounds,
       setMode: (mode) => setPrefs((p) => ({ ...p, mode })),
       setAccent: (accent) => setPrefs((p) => ({ ...p, accent })),
+      setBackground: (background) => setPrefs((p) => ({ ...p, background })),
+      addSavedBackground: (uri) =>
+        setPrefs((p) =>
+          p.savedBackgrounds.includes(uri)
+            ? p
+            : { ...p, savedBackgrounds: [uri, ...p.savedBackgrounds] },
+        ),
+      removeSavedBackground: (uri) =>
+        setPrefs((p) => ({
+          ...p,
+          savedBackgrounds: p.savedBackgrounds.filter((u) => u !== uri),
+          // If the deleted photo is the active background, fall back to none.
+          background:
+            p.background.type === 'image' && p.background.uri === uri
+              ? { type: 'none' }
+              : p.background,
+        })),
     };
   }, [loaded, prefs, system]);
 

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { useNutrition } from '@/store/nutrition';
@@ -76,7 +77,8 @@ export default function AddFoodScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+      <AppBackground />
       <View style={styles.topBar}>
         <Pressable onPress={() => router.back()} hitSlop={16} style={styles.side}>
           <Ionicons name="close" size={26} color={palette.fg} />

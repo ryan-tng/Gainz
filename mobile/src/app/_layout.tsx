@@ -20,6 +20,7 @@ function ThemedApp() {
           contentStyle: { backgroundColor: palette.bg },
         }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="profile" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings" options={{ presentation: 'card' }} />
         <Stack.Screen name="records" options={{ presentation: 'card' }} />
         <Stack.Screen name="session/[id]" />

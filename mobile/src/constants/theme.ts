@@ -57,6 +57,43 @@ export const ACCENTS = [
   '#f87171', // red
 ] as const;
 
+/** Blend two hex colors: t=0 → a, t=1 → b. */
+export function mixHex(a: string, b: string, t: number): string {
+  const pa = a.replace('#', '');
+  const pb = b.replace('#', '');
+  const ar = parseInt(pa.slice(0, 2), 16);
+  const ag = parseInt(pa.slice(2, 4), 16);
+  const ab = parseInt(pa.slice(4, 6), 16);
+  const br = parseInt(pb.slice(0, 2), 16);
+  const bg = parseInt(pb.slice(2, 4), 16);
+  const bb = parseInt(pb.slice(4, 6), 16);
+  const h = (n: number) => Math.round(n).toString(16).padStart(2, '0');
+  return `#${h(ar + (br - ar) * t)}${h(ag + (bg - ag) * t)}${h(ab + (bb - ab) * t)}`;
+}
+
+// ---------- Home background ----------
+
+export type AppBackground =
+  | { type: 'none' }
+  | { type: 'gradient'; id: string }
+  | { type: 'image'; uri: string; dim?: number }; // dim: 0 (raw) … 1 (solid overlay)
+
+/** Gradient presets, computed from the live palette so they suit dark & light. */
+export interface GradientPreset {
+  id: string;
+  label: string;
+  colors: (p: Palette) => string[];
+}
+
+export const GRADIENTS: GradientPreset[] = [
+  { id: 'accent', label: 'Accent glow', colors: (p) => [mixHex(p.bg, p.accent, 0.22), p.bg] },
+  { id: 'emerald', label: 'Emerald', colors: (p) => [mixHex(p.bg, p.accent2, 0.2), p.bg] },
+  { id: 'twilight', label: 'Twilight', colors: (p) => [mixHex(p.bg, '#a78bfa', 0.22), p.bg] },
+  { id: 'sunset', label: 'Sunset', colors: (p) => [mixHex(p.bg, '#fb923c', 0.2), p.bg] },
+  { id: 'ocean', label: 'Ocean', colors: (p) => [mixHex(p.bg, '#22d3ee', 0.2), p.bg] },
+  { id: 'charcoal', label: 'Charcoal', colors: (p) => [p.surface2, p.bg] },
+];
+
 /** Pick black/white text for a given accent background by luminance. */
 export function contrastOn(hex: string): string {
   const h = hex.replace('#', '');

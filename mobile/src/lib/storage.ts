@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { AppBackground } from '@/constants/theme';
 import type {
   CoachPlan,
   Exercise,
@@ -29,10 +30,13 @@ const KEYS = {
   theme: 'gainz:theme',
 } as const;
 
-/** Persisted theme preferences (mode + accent). */
+/** Persisted theme preferences (mode + accent + home background). */
 export interface StoredTheme {
   mode: 'dark' | 'light' | 'system';
   accent: string;
+  background?: AppBackground;
+  /** Photos the user has uploaded as backgrounds, kept so they can reuse them. */
+  savedBackgrounds?: string[];
 }
 
 /** Simple unique id. Not cryptographic — fine for local records. */

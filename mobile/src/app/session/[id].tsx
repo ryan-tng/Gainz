@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { Card, EmptyState } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { formatDate, formatDuration, formatTime, formatVolume } from '@/lib/format';
@@ -21,7 +22,8 @@ export default function SessionDetailScreen() {
 
   if (!session) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
+        <AppBackground />
         <TopBar onBack={() => router.back()} onDelete={null} />
         <View style={styles.centered}>
           <EmptyState
@@ -52,7 +54,8 @@ export default function SessionDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+      <AppBackground />
       <TopBar onBack={() => router.back()} onDelete={onDelete} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.name}>{session.name}</Text>

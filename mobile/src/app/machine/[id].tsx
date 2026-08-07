@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { AppButton, EmptyState } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { useMachines } from '@/store/machines';
@@ -30,7 +31,8 @@ export default function MachineDetailScreen() {
 
   if (!machine) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+        <AppBackground />
         <TopBar onBack={() => router.back()} />
         <EmptyState icon="alert-circle-outline" title="Machine not found" body="It may have been deleted." />
       </SafeAreaView>
@@ -52,7 +54,8 @@ export default function MachineDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+      <AppBackground />
       <TopBar
         onBack={() => router.back()}
         onEdit={() => router.push(`/machine/edit?id=${machine.id}`)}

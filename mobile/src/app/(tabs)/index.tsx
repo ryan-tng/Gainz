@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackground } from '@/components/AppBackground';
 import { ExercisePickerModal } from '@/components/ExercisePickerModal';
 import { AppButton, Card, Loading } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -169,7 +170,8 @@ function ActiveWorkoutHome({
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top']}>
+      <AppBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Live hero */}
         <View style={[styles.hero, { backgroundColor: `${color}18`, borderColor: `${color}55` }]}>
@@ -526,10 +528,11 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
   const startTemplate = (id: string) => confirmStart(() => startFromTemplate(id));
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top']}>
+      <AppBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileRow}>
-          <Pressable style={styles.profileLeft} onPress={() => router.push('/settings')}>
+          <Pressable style={styles.profileLeft} onPress={() => router.push('/profile')}>
             <View style={styles.avatar}>
               {profile?.avatarUri ? (
                 <Image source={{ uri: profile.avatarUri }} style={styles.avatarImg} />
