@@ -2,6 +2,7 @@ import 'react-native-url-polyfill/auto';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 
 /**
  * Supabase client for accounts + cloud backup. Credentials come from public
@@ -18,10 +19,13 @@ export const isSupabaseConfigured = Boolean(url && anonKey);
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url as string, anonKey as string, {
       auth: {
-        storage: AsyncStorage,
+        // On native, persist in AsyncStorage. On web, use the default
+        // (localStorage) so the email-verification redirect can restore it.
+        storage: Platform.OS === 'web' ? undefined : AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        // Web: parse the confirmation/magic-link token from the URL on load.
+        detectSessionInUrl: Platform.OS === 'web',
       },
     })
   : null;

@@ -12,13 +12,33 @@ function fmt(sec: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-/** Floating countdown shown while a rest is running. Rendered app-wide. */
+/** Floating rest timer — counts down, then rings until dismissed. App-wide. */
 export function RestTimerBar() {
-  const { running, remaining, addTime, skip } = useRestTimer();
+  const { running, alarming, remaining, addTime, skip, stopAlarm } = useRestTimer();
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
 
-  if (!running) return null;
+  if (!running && !alarming) return null;
+
+  // Ringing state — a prominent alarm banner you tap to dismiss.
+  if (alarming) {
+    return (
+      <View style={[styles.wrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
+        <View style={[styles.bar, { backgroundColor: palette.accent, borderColor: palette.accent }]}>
+          <View style={styles.left}>
+            <Ionicons name="alarm" size={20} color={palette.onAccent} />
+            <Text style={[styles.ringLabel, { color: palette.onAccent }]}>Rest over</Text>
+          </View>
+          <Pressable
+            onPress={stopAlarm}
+            hitSlop={8}
+            style={[styles.stop, { backgroundColor: palette.onAccent }]}>
+            <Text style={[styles.stopText, { color: palette.accent }]}>Stop</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.wrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
@@ -68,4 +88,7 @@ const styles = StyleSheet.create({
   adjText: { fontSize: 14, fontWeight: '700' },
   skip: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.one + 2, borderRadius: Radius.full },
   skipText: { fontSize: 13, fontWeight: '800' },
+  ringLabel: { fontSize: 16, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  stop: { paddingHorizontal: Spacing.five, paddingVertical: Spacing.two, borderRadius: Radius.full },
+  stopText: { fontSize: 15, fontWeight: '800' },
 });

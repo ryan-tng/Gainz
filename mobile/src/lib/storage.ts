@@ -31,6 +31,7 @@ const KEYS = {
   theme: 'gainz:theme',
   coachName: 'gainz:coachName',
   restSeconds: 'gainz:restSeconds',
+  restAlarm: 'gainz:restAlarm',
   bodyWeights: 'gainz:bodyWeights',
 } as const;
 
@@ -104,6 +105,9 @@ export const storage = {
 
   loadRestSeconds: () => readJSON<number | null>(KEYS.restSeconds, null),
   saveRestSeconds: (v: number) => writeJSON(KEYS.restSeconds, v),
+
+  loadRestAlarm: () => readJSON<boolean | null>(KEYS.restAlarm, null),
+  saveRestAlarm: (v: boolean) => writeJSON(KEYS.restAlarm, v),
 
   /** Wipe every Gainz key — used by "Reset app data" in Settings. */
   clearAll: () => AsyncStorage.multiRemove(Object.values(KEYS)),

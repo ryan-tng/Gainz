@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
@@ -47,7 +47,7 @@ export default function SettingsScreen() {
     removeSavedBackground,
   } = useTheme();
   const { coachName, setCoachName } = useNutrition();
-  const { defaultSeconds, setDefaultSeconds } = useRestTimer();
+  const { defaultSeconds, setDefaultSeconds, alarmEnabled, setAlarmEnabled } = useRestTimer();
   const { configured, user, signOut } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const [coachNameDraft, setCoachNameDraft] = useState(coachName);
@@ -317,6 +317,18 @@ export default function SettingsScreen() {
             );
           })}
         </View>
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.switchLabel}>Alarm sound</Text>
+            <Text style={styles.switchSub}>Play a chime when the rest timer ends.</Text>
+          </View>
+          <Switch
+            value={alarmEnabled}
+            onValueChange={setAlarmEnabled}
+            trackColor={{ false: palette.surface2, true: palette.accent }}
+            thumbColor={palette.fg}
+          />
+        </View>
         <Text style={styles.hint}>Auto-starts after you complete a set. Tap −15/+15 or Skip on the timer.</Text>
 
         {/* AI Coach */}
@@ -484,5 +496,13 @@ const makeStyles = (palette: Palette) =>
     restPillOn: { backgroundColor: palette.accent, borderColor: palette.accent },
     restPillText: { color: palette.muted, fontSize: 14, fontWeight: '700' },
     restPillTextOn: { color: palette.onAccent },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.three,
+      marginTop: Spacing.three,
+    },
+    switchLabel: { color: palette.fg, fontSize: 15, fontWeight: '600' },
+    switchSub: { color: palette.muted, fontSize: 12, marginTop: 2 },
     hint: { color: palette.muted, fontSize: 12, lineHeight: 18, marginTop: Spacing.three },
   });
