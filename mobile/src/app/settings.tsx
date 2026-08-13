@@ -12,7 +12,6 @@ import { AppButton } from '@/components/ui';
 import { ACCENTS, GRADIENTS, Radius, Spacing, type Palette } from '@/constants/theme';
 import { pickFromLibrary } from '@/lib/images';
 import { storage } from '@/lib/storage';
-import { backupToCloud, restoreFromCloud } from '@/lib/sync';
 import { useAuth } from '@/store/auth';
 import { useNutrition } from '@/store/nutrition';
 import { useRestTimer } from '@/store/restTimer';
@@ -51,48 +50,6 @@ export default function SettingsScreen() {
   const { configured, user, signOut } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const [coachNameDraft, setCoachNameDraft] = useState(coachName);
-  const [syncing, setSyncing] = useState(false);
-
-  const backup = async () => {
-    setSyncing(true);
-    try {
-      await backupToCloud();
-      Alert.alert('Backed up', 'Your data is safely saved to the cloud.');
-    } catch (e) {
-      Alert.alert('Backup failed', e instanceof Error ? e.message : 'Please try again.');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const restore = () => {
-    Alert.alert(
-      'Restore from cloud?',
-      'This replaces the data on this device with your cloud backup. Fully reload the app afterward to see it.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore',
-          onPress: async () => {
-            setSyncing(true);
-            try {
-              const ok = await restoreFromCloud();
-              Alert.alert(
-                ok ? 'Restored' : 'No backup',
-                ok
-                  ? 'Fully reload the app (shake → Reload, or restart it) to see your restored data.'
-                  : 'No cloud backup was found for this account yet.',
-              );
-            } catch (e) {
-              Alert.alert('Restore failed', e instanceof Error ? e.message : 'Please try again.');
-            } finally {
-              setSyncing(false);
-            }
-          },
-        },
-      ],
-    );
-  };
 
   const pickBackgroundPhoto = async () => {
     const uri = await pickFromLibrary();
@@ -155,26 +112,28 @@ export default function SettingsScreen() {
                 {user.email}
               </Text>
             </View>
-            <AppButton
-              label={syncing ? 'Working…' : 'Back up now'}
-              icon="cloud-upload-outline"
-              onPress={backup}
-              disabled={syncing}
-              style={{ marginTop: Spacing.two }}
-            />
-            <AppButton
-              label="Restore from cloud"
-              icon="cloud-download-outline"
-              variant="secondary"
-              onPress={restore}
-              disabled={syncing}
-              style={{ marginTop: Spacing.two }}
-            />
+            <Text style={styles.hint}>Your data syncs to your account automatically.</Text>
             <AppButton
               label="Sign out"
               icon="log-out-outline"
               variant="ghost"
-              onPress={signOut}
+              onPress={() =>
+                Alert.alert(
+                  'Sign out?',
+                  'This clears data on this device and returns you to sign in. It stays saved to your account and comes back when you sign in again.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Sign out',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await signOut();
+                        router.replace('/');
+                      },
+                    },
+                  ],
+                )
+              }
               style={{ marginTop: Spacing.two }}
             />
           </>

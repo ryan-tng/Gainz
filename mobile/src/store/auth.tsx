@@ -1,13 +1,25 @@
 import type { User } from '@supabase/supabase-js';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
+import { storage } from '@/lib/storage';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { restoreFromCloud } from '@/lib/sync';
 
 interface AuthContextValue {
   /** Whether Supabase credentials are present in this build. */
   configured: boolean;
   loading: boolean;
   user: User | null;
+  /** Bumped on sign-out to remount (and reset) the whole data/UI tree. */
+  resetKey: number;
   signIn: (email: string, password: string) => Promise<void>;
   /** Returns true if a session started, false if email confirmation is required. */
   signUp: (email: string, password: string) => Promise<boolean>;
@@ -19,18 +31,43 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resetKey, setResetKey] = useState(0);
+  // The user id whose cloud data we've already pulled this run.
+  const syncedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
       return;
     }
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
+    // Initial launch: if there's a session, pull the account's cloud data into
+    // local storage BEFORE the app mounts, so it loads with their data.
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const u = data.session?.user ?? null;
+      if (u) {
+        await restoreFromCloud().catch(() => {});
+        syncedRef.current = u.id;
+      }
+      setUser(u);
       setLoading(false);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    })();
+
+    // Subsequent auth changes (in-app sign-in on a new account): pull, then
+    // remount the tree so every store reloads with the pulled data.
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const u = session?.user ?? null;
+      if (u && u.id !== syncedRef.current) {
+        await restoreFromCloud().catch(() => {});
+        syncedRef.current = u.id;
+        setUser(u);
+        setResetKey((k) => k + 1);
+      } else if (!u) {
+        syncedRef.current = null;
+        setUser(null);
+      } else {
+        setUser(u); // token refresh / same account
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -40,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured: isSupabaseConfigured,
       loading,
       user,
+      resetKey,
       signIn: async (email, password) => {
         if (!supabase) throw new Error('Cloud accounts are not configured.');
         const { error } = await supabase.auth.signInWithPassword({
@@ -55,11 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return data.session !== null; // false → needs email confirmation
       },
       signOut: async () => {
-        if (!supabase) return;
-        await supabase.auth.signOut();
+        if (supabase) await supabase.auth.signOut();
+        // Wipe all on-device personalization/data, then remount the app tree.
+        await storage.clearAll();
+        syncedRef.current = null;
+        setUser(null);
+        setResetKey((k) => k + 1);
       },
     }),
-    [loading, user],
+    [loading, user, resetKey],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

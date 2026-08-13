@@ -1,10 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 
+import { Loading } from '@/components/ui';
+import { useAuth } from '@/store/auth';
 import { useTheme } from '@/store/theme';
 
 export default function TabsLayout() {
   const { palette } = useTheme();
+  const { configured, loading, user } = useAuth();
+
+  // When cloud accounts are configured, require sign-in before using the app.
+  if (configured && loading) return <Loading />;
+  if (configured && !user) return <Redirect href="/auth" />;
+
   return (
     <Tabs
       screenOptions={{

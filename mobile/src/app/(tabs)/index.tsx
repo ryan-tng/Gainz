@@ -566,21 +566,23 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
       <AppBackground />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileRow}>
-          <Pressable style={styles.profileLeft} onPress={() => router.push('/profile')}>
-            <View style={styles.avatar}>
-              {profile?.avatarUri ? (
-                <Image source={{ uri: profile.avatarUri }} style={styles.avatarImg} />
-              ) : (
-                <Ionicons name="person" size={22} color={palette.muted} />
-              )}
-            </View>
-            <View>
+          <View style={styles.profileLeft}>
+            <Pressable onPress={() => router.push('/profile')} hitSlop={6}>
+              <View style={styles.avatar}>
+                {profile?.avatarUri ? (
+                  <Image source={{ uri: profile.avatarUri }} style={styles.avatarImg} />
+                ) : (
+                  <Ionicons name="person" size={22} color={palette.muted} />
+                )}
+              </View>
+            </Pressable>
+            <View style={{ flex: 1 }}>
               <Text style={styles.greeting}>{greeting()}</Text>
               <Text style={styles.profileName} numberOfLines={1}>
                 {profile?.name || 'Athlete'}
               </Text>
             </View>
-          </Pressable>
+          </View>
           <Pressable onPress={() => router.push('/settings')} hitSlop={8} style={styles.gearBtn}>
             <Ionicons name="settings-outline" size={22} color={palette.muted} />
           </Pressable>

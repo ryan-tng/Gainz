@@ -24,7 +24,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -35,6 +35,10 @@ export default function AuthScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const valid = EMAIL_RE.test(email.trim()) && password.length >= 6;
+  // This screen is only reached as the required sign-in gate (you can't open it
+  // while signed in), so there's nothing to dismiss to.
+  const canDismiss = !!user;
+  const done = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   const submit = async () => {
     if (!valid || busy) return;
@@ -43,11 +47,11 @@ export default function AuthScreen() {
     try {
       if (mode === 'signin') {
         await signIn(email, password);
-        router.back();
+        done();
       } else {
         const started = await signUp(email, password);
         if (started) {
-          router.back();
+          done();
         } else {
           Alert.alert(
             'Confirm your email',
@@ -67,9 +71,13 @@ export default function AuthScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
       <AppBackground />
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.side}>
-          <Ionicons name="close" size={26} color={palette.fg} />
-        </Pressable>
+        {canDismiss ? (
+          <Pressable onPress={() => router.back()} hitSlop={16} style={styles.side}>
+            <Ionicons name="close" size={26} color={palette.fg} />
+          </Pressable>
+        ) : (
+          <View style={styles.side} />
+        )}
         <Text style={styles.topTitle}>{mode === 'signin' ? 'Sign in' : 'Create account'}</Text>
         <View style={styles.side} />
       </View>
