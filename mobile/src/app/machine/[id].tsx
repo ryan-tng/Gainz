@@ -1,20 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  Alert,
-  Dimensions,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton, EmptyState } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 import { usableImageUri } from '@/lib/images';
 import { useMachines } from '@/store/machines';
 import { useTheme, useThemedStyles } from '@/store/theme';
@@ -40,18 +32,18 @@ export default function MachineDetailScreen() {
     );
   }
 
-  const onDelete = () => {
-    Alert.alert('Delete machine?', `Remove "${machine.name}" and its tutorial?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          deleteMachine(machine.id);
-          router.back();
-        },
-      },
-    ]);
+  const onDelete = async () => {
+    if (
+      await confirmAsync({
+        title: 'Delete machine?',
+        message: `Remove "${machine.name}" and its tutorial?`,
+        confirmText: 'Delete',
+        destructive: true,
+      })
+    ) {
+      deleteMachine(machine.id);
+      router.back();
+    }
   };
 
   return (

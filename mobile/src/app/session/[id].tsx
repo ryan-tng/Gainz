@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
 import { Card, EmptyState } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 import { formatDate, formatDuration, formatTime, formatVolume } from '@/lib/format';
 import { sessionStats } from '@/lib/types';
 import { useTheme, useThemedStyles } from '@/store/theme';
@@ -39,18 +40,18 @@ export default function SessionDetailScreen() {
   const st = sessionStats(session);
   const end = session.finishedAt ?? session.startedAt;
 
-  const onDelete = () => {
-    Alert.alert('Delete workout?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          deleteSession(session.id);
-          router.back();
-        },
-      },
-    ]);
+  const onDelete = async () => {
+    if (
+      await confirmAsync({
+        title: 'Delete workout?',
+        message: 'This cannot be undone.',
+        confirmText: 'Delete',
+        destructive: true,
+      })
+    ) {
+      deleteSession(session.id);
+      router.back();
+    }
   };
 
   return (

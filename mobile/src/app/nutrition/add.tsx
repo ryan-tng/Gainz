@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 import { useNutrition } from '@/store/nutrition';
 import { useTheme, useThemedStyles } from '@/store/theme';
 
@@ -72,19 +72,19 @@ export default function AddFoodScreen() {
     router.back();
   };
 
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!existing) return;
-    Alert.alert('Delete entry?', `Remove "${existing.label}" from your log?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          deleteEntry(existing.id);
-          router.back();
-        },
-      },
-    ]);
+    if (
+      await confirmAsync({
+        title: 'Delete entry?',
+        message: `Remove "${existing.label}" from your log?`,
+        confirmText: 'Delete',
+        destructive: true,
+      })
+    ) {
+      deleteEntry(existing.id);
+      router.back();
+    }
   };
 
   return (

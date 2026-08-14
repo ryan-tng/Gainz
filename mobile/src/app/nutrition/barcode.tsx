@@ -2,11 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 import { lookupBarcode } from '@/lib/foodDb';
 import { useTheme, useThemedStyles } from '@/store/theme';
 
@@ -25,10 +26,18 @@ export default function BarcodeScreen() {
     try {
       const item = await lookupBarcode(data);
       if (!item) {
-        Alert.alert('Not found', `No product for barcode ${data}. Try searching by name instead.`, [
-          { text: 'Scan again', onPress: () => { handledRef.current = false; setBusy(false); } },
-          { text: 'Back', onPress: () => router.back(), style: 'cancel' },
-        ]);
+        const again = await confirmAsync({
+          title: 'Not found',
+          message: `No product for barcode ${data}. Try searching by name instead.`,
+          confirmText: 'Scan again',
+          cancelText: 'Back',
+        });
+        if (again) {
+          handledRef.current = false;
+          setBusy(false);
+        } else {
+          router.back();
+        }
         return;
       }
       router.replace({
@@ -42,10 +51,18 @@ export default function BarcodeScreen() {
         },
       });
     } catch {
-      Alert.alert('Lookup failed', 'Please try again.', [
-        { text: 'Scan again', onPress: () => { handledRef.current = false; setBusy(false); } },
-        { text: 'Back', onPress: () => router.back(), style: 'cancel' },
-      ]);
+      const again = await confirmAsync({
+        title: 'Lookup failed',
+        message: 'Please try again.',
+        confirmText: 'Scan again',
+        cancelText: 'Back',
+      });
+      if (again) {
+        handledRef.current = false;
+        setBusy(false);
+      } else {
+        router.back();
+      }
     }
   };
 

@@ -4,12 +4,13 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { ACCENTS, GRADIENTS, Radius, Spacing, type Palette } from '@/constants/theme';
+import { confirmAsync, notify } from '@/lib/confirm';
 import { pickFromLibrary, usableImageUri } from '@/lib/images';
 import { storage } from '@/lib/storage';
 import { useAuth } from '@/store/auth';
@@ -58,32 +59,32 @@ export default function SettingsScreen() {
     setBackground({ type: 'image', uri, dim: 0.5 });
   };
 
-  const confirmDeleteBackground = (uri: string) => {
-    Alert.alert('Delete background?', 'Remove this photo from your saved backgrounds?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => removeSavedBackground(uri) },
-    ]);
+  const confirmDeleteBackground = async (uri: string) => {
+    if (
+      await confirmAsync({
+        title: 'Delete background?',
+        message: 'Remove this photo from your saved backgrounds?',
+        confirmText: 'Delete',
+        destructive: true,
+      })
+    ) {
+      removeSavedBackground(uri);
+    }
   };
 
-  const resetData = () => {
-    Alert.alert(
-      'Reset app data?',
-      'This permanently deletes your workouts, templates, records, food log, goal, and profile on this device. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete everything',
-          style: 'destructive',
-          onPress: async () => {
-            await storage.clearAll();
-            Alert.alert(
-              'Data cleared',
-              'Fully reload the app (shake → Reload, or restart it) to start fresh.',
-            );
-          },
-        },
-      ],
-    );
+  const resetData = async () => {
+    if (
+      await confirmAsync({
+        title: 'Reset app data?',
+        message:
+          'This permanently deletes your workouts, templates, records, food log, goal, and profile on this device. This cannot be undone.',
+        confirmText: 'Delete everything',
+        destructive: true,
+      })
+    ) {
+      await storage.clearAll();
+      notify('Data cleared', 'Fully reload the app (shake → Reload, or restart it) to start fresh.');
+    }
   };
 
   const version = Constants.expoConfig?.version ?? '1.0.0';
@@ -117,23 +118,20 @@ export default function SettingsScreen() {
               label="Sign out"
               icon="log-out-outline"
               variant="ghost"
-              onPress={() =>
-                Alert.alert(
-                  'Sign out?',
-                  'This clears data on this device and returns you to sign in. It stays saved to your account and comes back when you sign in again.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Sign out',
-                      style: 'destructive',
-                      onPress: async () => {
-                        await signOut();
-                        router.replace('/');
-                      },
-                    },
-                  ],
-                )
-              }
+              onPress={async () => {
+                if (
+                  await confirmAsync({
+                    title: 'Sign out?',
+                    message:
+                      'This clears data on this device and returns you to sign in. It stays saved to your account and comes back when you sign in again.',
+                    confirmText: 'Sign out',
+                    destructive: true,
+                  })
+                ) {
+                  await signOut();
+                  router.replace('/');
+                }
+              }}
               style={{ marginTop: Spacing.two }}
             />
           </>

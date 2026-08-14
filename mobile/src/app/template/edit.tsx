@@ -1,22 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 import { TEMPLATE_COLORS, TEMPLATE_ICONS } from '@/lib/templates';
 import type { Exercise, TemplateExercise, TemplateSet } from '@/lib/types';
 import { useTheme, useThemedStyles } from '@/store/theme';
@@ -108,19 +99,19 @@ export default function TemplateEditScreen() {
     router.back();
   };
 
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!existing) return;
-    Alert.alert('Delete workout?', `Remove "${existing.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          deleteTemplate(existing.id);
-          router.back();
-        },
-      },
-    ]);
+    if (
+      await confirmAsync({
+        title: 'Delete workout?',
+        message: `Remove "${existing.name}"?`,
+        confirmText: 'Delete',
+        destructive: true,
+      })
+    ) {
+      deleteTemplate(existing.id);
+      router.back();
+    }
   };
 
   return (

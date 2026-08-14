@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { notify } from '@/lib/confirm';
 import { useAuth } from '@/store/auth';
 import { useTheme, useThemedStyles } from '@/store/theme';
 
@@ -53,10 +53,10 @@ export default function AuthScreen() {
         if (started) {
           done();
         } else {
-          Alert.alert(
+          setMode('signin');
+          notify(
             'Confirm your email',
             'We sent you a confirmation link. Verify your email, then sign in.',
-            [{ text: 'OK', onPress: () => setMode('signin') }],
           );
         }
       }

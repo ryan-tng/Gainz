@@ -3,7 +3,6 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -21,6 +20,7 @@ import { AppBackground } from '@/components/AppBackground';
 import { ExercisePickerModal } from '@/components/ExercisePickerModal';
 import { AppButton, Card, Loading } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 import { formatDate, formatVolume } from '@/lib/format';
 import { usableImageUri } from '@/lib/images';
 import { computeDashboard, computeRecords } from '@/lib/stats';
@@ -154,33 +154,32 @@ function ActiveWorkoutHome({
   }
   const progress = totalSets ? doneSets / totalSets : 0;
 
-  const onFinish = () => {
+  const onFinish = async () => {
     if (active.exercises.length === 0 || doneSets === 0) {
-      Alert.alert(
-        'Finish workout?',
-        doneSets === 0 ? 'You have no completed sets yet.' : 'Save this workout?',
-        [
-          { text: 'Keep going', style: 'cancel' },
-          {
-            text: 'Finish',
-            onPress: () => {
-              const id = finishWorkout();
-              if (id) router.push(`/session/${id}`);
-            },
-          },
-        ],
-      );
-      return;
+      const ok = await confirmAsync({
+        title: 'Finish workout?',
+        message: doneSets === 0 ? 'You have no completed sets yet.' : 'Save this workout?',
+        confirmText: 'Finish',
+        cancelText: 'Keep going',
+      });
+      if (!ok) return;
     }
     const id = finishWorkout();
     if (id) router.push(`/session/${id}`);
   };
 
-  const onDiscard = () => {
-    Alert.alert('Discard workout?', 'This workout will not be saved.', [
-      { text: 'Keep going', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: () => cancelWorkout() },
-    ]);
+  const onDiscard = async () => {
+    if (
+      await confirmAsync({
+        title: 'Discard workout?',
+        message: 'This workout will not be saved.',
+        confirmText: 'Discard',
+        cancelText: 'Keep going',
+        destructive: true,
+      })
+    ) {
+      cancelWorkout();
+    }
   };
 
   return (
@@ -540,23 +539,20 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
 
   // Starting a workout flips Home into the live takeover (like clocking in).
   // If one is already in progress, warn before replacing it.
-  const confirmStart = (start: () => void) => {
-    const go = () => {
-      start();
-      onResumeView(); // ensure the live takeover shows (in case we were minimized)
-    };
-    if (active) {
-      Alert.alert(
-        'Workout in progress',
-        `You already have "${active.name}" going. Starting a new workout will discard it.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Discard & start', style: 'destructive', onPress: go },
-        ],
-      );
+  const confirmStart = async (start: () => void) => {
+    if (
+      active &&
+      !(await confirmAsync({
+        title: 'Workout in progress',
+        message: `You already have "${active.name}" going. Starting a new workout will discard it.`,
+        confirmText: 'Discard & start',
+        destructive: true,
+      }))
+    ) {
       return;
     }
-    go();
+    start();
+    onResumeView(); // ensure the live takeover shows (in case we were minimized)
   };
 
   const startEmpty = () => confirmStart(() => startWorkout());

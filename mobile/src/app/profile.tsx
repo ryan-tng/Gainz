@@ -63,6 +63,14 @@ export default function ProfileScreen() {
   };
 
   const changePhoto = () => {
+    // Web has no native action sheet — open the file picker directly.
+    if (Platform.OS === 'web') {
+      void (async () => {
+        const uri = await pickFromLibrary();
+        if (uri) setAvatarUri(uri);
+      })();
+      return;
+    }
     const options: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
       {
         text: 'Take photo',
