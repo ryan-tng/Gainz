@@ -24,7 +24,9 @@ export function RestTimerBar() {
   if (alarming) {
     return (
       <View style={[styles.wrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
-        <View style={[styles.bar, { backgroundColor: palette.accent, borderColor: palette.accent }]}>
+        <View
+          style={[styles.bar, { backgroundColor: palette.accent, borderColor: palette.accent }]}
+          pointerEvents="box-none">
           <View style={styles.left}>
             <Ionicons name="alarm" size={20} color={palette.onAccent} />
             <Text style={[styles.ringLabel, { color: palette.onAccent }]}>Rest over</Text>
@@ -42,7 +44,9 @@ export function RestTimerBar() {
 
   return (
     <View style={[styles.wrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
-      <View style={[styles.bar, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+      <View
+        style={[styles.bar, { backgroundColor: palette.surface, borderColor: palette.border }]}
+        pointerEvents="box-none">
         <View style={styles.left}>
           <Ionicons name="timer-outline" size={18} color={palette.accent} />
           <Text style={[styles.label, { color: palette.muted }]}>Rest</Text>
