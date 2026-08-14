@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
-import { pickFromLibrary, takePhoto } from '@/lib/images';
+import { pickFromLibrary, takePhoto, usableImageUri } from '@/lib/images';
 import { MUSCLE_GROUPS, type MuscleGroup } from '@/lib/types';
 import { useMachines } from '@/store/machines';
 import { useTheme, useThemedStyles } from '@/store/theme';
@@ -101,7 +101,11 @@ export default function MachineEditScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
             {photos.map((uri, i) => (
               <View key={i} style={styles.photoThumb}>
-                <Image source={{ uri }} style={styles.photoImg} />
+                {usableImageUri(uri) ? (
+                  <Image source={{ uri: usableImageUri(uri) }} style={styles.photoImg} />
+                ) : (
+                  <Ionicons name="image-outline" size={24} color={palette.muted} />
+                )}
                 <Pressable
                   style={styles.removePhoto}
                   onPress={() => setPhotos((cur) => cur.filter((_, idx) => idx !== i))}>

@@ -22,6 +22,7 @@ import { ExercisePickerModal } from '@/components/ExercisePickerModal';
 import { AppButton, Card, Loading } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { formatDate, formatVolume } from '@/lib/format';
+import { usableImageUri } from '@/lib/images';
 import { computeDashboard, computeRecords } from '@/lib/stats';
 import {
   sessionStats,
@@ -569,8 +570,8 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
           <View style={styles.profileLeft}>
             <Pressable onPress={() => router.push('/profile')} hitSlop={6}>
               <View style={styles.avatar}>
-                {profile?.avatarUri ? (
-                  <Image source={{ uri: profile.avatarUri }} style={styles.avatarImg} />
+                {usableImageUri(profile?.avatarUri) ? (
+                  <Image source={{ uri: usableImageUri(profile?.avatarUri) }} style={styles.avatarImg} />
                 ) : (
                   <Ionicons name="person" size={22} color={palette.muted} />
                 )}

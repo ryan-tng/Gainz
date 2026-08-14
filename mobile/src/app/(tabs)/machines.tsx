@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/AppBackground';
 import { EmptyState, Loading } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { usableImageUri } from '@/lib/images';
 import { MUSCLE_GROUPS, type MuscleGroup } from '@/lib/types';
 import { useMachines } from '@/store/machines';
 import { useTheme, useThemedStyles } from '@/store/theme';
@@ -94,8 +95,8 @@ export default function MachinesScreen() {
         renderItem={({ item }) => (
           <Pressable style={styles.card} onPress={() => router.push(`/machine/${item.id}`)}>
             <View style={styles.thumb}>
-              {item.photos[0] ? (
-                <Image source={{ uri: item.photos[0] }} style={styles.thumbImg} />
+              {usableImageUri(item.photos[0]) ? (
+                <Image source={{ uri: usableImageUri(item.photos[0]) }} style={styles.thumbImg} />
               ) : (
                 <Ionicons name="barbell-outline" size={30} color={palette.muted} />
               )}

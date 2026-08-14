@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { ACCENTS, GRADIENTS, Radius, Spacing, type Palette } from '@/constants/theme';
-import { pickFromLibrary } from '@/lib/images';
+import { pickFromLibrary, usableImageUri } from '@/lib/images';
 import { storage } from '@/lib/storage';
 import { useAuth } from '@/store/auth';
 import { useNutrition } from '@/store/nutrition';
@@ -217,7 +217,11 @@ export default function SettingsScreen() {
                     setBackground({ type: 'image', uri, dim: on ? background.dim ?? 0.5 : 0.5 })
                   }
                   style={[styles.bgSwatch, on && styles.bgSwatchOn]}>
-                  <Image source={{ uri }} style={StyleSheet.absoluteFill} />
+                  {usableImageUri(uri) ? (
+                    <Image source={{ uri: usableImageUri(uri) }} style={StyleSheet.absoluteFill} />
+                  ) : (
+                    <Ionicons name="image-outline" size={18} color={palette.muted} />
+                  )}
                   {on ? (
                     <View style={styles.bgCheck}>
                       <Ionicons name="checkmark" size={16} color={palette.onAccent} />

@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image, StyleSheet, View } from 'react-native';
 
 import { GRADIENTS } from '@/constants/theme';
+import { usableImageUri } from '@/lib/images';
 import { useTheme } from '@/store/theme';
 
 /**
@@ -32,9 +33,13 @@ export function AppBackground() {
           })()
         : null}
 
-      {background.type === 'image' ? (
+      {background.type === 'image' && usableImageUri(background.uri) ? (
         <>
-          <Image source={{ uri: background.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <Image
+            source={{ uri: usableImageUri(background.uri) }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
           {/* Optional readability dim, controlled by the slider in Settings. */}
           {background.dim ? (
             <View

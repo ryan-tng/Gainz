@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton, EmptyState } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { usableImageUri } from '@/lib/images';
 import { useMachines } from '@/store/machines';
 import { useTheme, useThemedStyles } from '@/store/theme';
 
@@ -62,15 +63,18 @@ export default function MachineDetailScreen() {
         onDelete={onDelete}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {machine.photos.length > 0 ? (
+        {machine.photos.filter((u) => usableImageUri(u)).length > 0 ? (
           <ScrollView
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             style={styles.gallery}>
-            {machine.photos.map((uri, i) => (
-              <Image key={i} source={{ uri }} style={styles.photo} />
-            ))}
+            {machine.photos
+              .map((u) => usableImageUri(u))
+              .filter((u): u is string => !!u)
+              .map((uri, i) => (
+                <Image key={i} source={{ uri }} style={styles.photo} />
+              ))}
           </ScrollView>
         ) : (
           <View style={styles.noPhoto}>

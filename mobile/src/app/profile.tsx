@@ -19,7 +19,7 @@ import { AppBackground } from '@/components/AppBackground';
 import { LineChart } from '@/components/LineChart';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { formatDate } from '@/lib/format';
-import { pickFromLibrary, takePhoto } from '@/lib/images';
+import { pickFromLibrary, takePhoto, usableImageUri } from '@/lib/images';
 import { useProfile } from '@/store/profile';
 import { useTheme, useThemedStyles } from '@/store/theme';
 
@@ -109,8 +109,8 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}>
           <View style={styles.avatarWrap}>
             <Pressable onPress={changePhoto} style={styles.avatar}>
-              {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
+              {usableImageUri(avatarUri) ? (
+                <Image source={{ uri: usableImageUri(avatarUri) }} style={styles.avatarImg} />
               ) : (
                 <Ionicons name="person" size={44} color={palette.muted} />
               )}
