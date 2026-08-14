@@ -16,22 +16,18 @@ const DEFAULT_REST = 90;
 const AUTO_STOP_MS = 60_000; // stop a ringing alarm after a minute if ignored
 
 interface RestTimerContextValue {
-  /** User's default rest length, in seconds. */
   defaultSeconds: number;
   setDefaultSeconds: (s: number) => void;
-  /** Whether to play the alarm sound when a rest ends. */
   alarmEnabled: boolean;
   setAlarmEnabled: (on: boolean) => void;
-  /** Whole seconds remaining, or 0 when no rest is running. */
-  remaining: number;
+  /** Epoch ms when the current rest ends, or null if none is running. */
+  endsAt: number | null;
   running: boolean;
   /** True once a rest ends and the alarm is ringing (until dismissed). */
   alarming: boolean;
-  /** Start (or restart) a rest. Defaults to the user's preferred length. */
   startRest: (seconds?: number) => void;
   addTime: (delta: number) => void;
   skip: () => void;
-  /** Silence a ringing alarm. */
   stopAlarm: () => void;
 }
 
@@ -42,11 +38,10 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   const [alarmEnabled, setAlarmEnabledState] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [endsAt, setEndsAt] = useState<number | null>(null);
-  const [now, setNow] = useState(Date.now());
   const [alarming, setAlarming] = useState(false);
 
-  const firedRef = useRef(false);
   const playerRef = useRef<AudioPlayer | null>(null);
+  const endTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hapticTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alarmEnabledRef = useRef(alarmEnabled);
@@ -59,7 +54,6 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       if (alarm !== null) setAlarmEnabledState(alarm);
       setLoaded(true);
     })();
-    // Let the alarm sound through the iOS silent switch.
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     return () => stopRinging();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,8 +66,15 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     if (loaded) void storage.saveRestAlarm(alarmEnabled);
   }, [alarmEnabled, loaded]);
 
-  /** Start the ringing alarm: looping sound + repeating vibration until dismissed. */
+  const clearEndTimer = () => {
+    if (endTimer.current) {
+      clearTimeout(endTimer.current);
+      endTimer.current = null;
+    }
+  };
+
   const startRinging = () => {
+    setEndsAt(null);
     setAlarming(true);
     if (alarmEnabledRef.current) {
       try {
@@ -87,7 +88,6 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         // ignore playback errors
       }
     }
-    // Buzz immediately, then keep buzzing like a real alarm.
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     hapticTimer.current = setInterval(() => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -113,25 +113,10 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     setAlarming(false);
   };
 
-  // Tick only while a rest is counting down.
-  useEffect(() => {
-    if (endsAt === null) return;
-    const t = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(t);
-  }, [endsAt]);
-
-  const remainingMs = endsAt === null ? 0 : Math.max(0, endsAt - now);
-  const remaining = Math.ceil(remainingMs / 1000);
-
-  // When the countdown reaches zero, start the ringing alarm.
-  useEffect(() => {
-    if (endsAt !== null && remainingMs === 0 && !firedRef.current) {
-      firedRef.current = true;
-      setEndsAt(null);
-      startRinging();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endsAt, remainingMs]);
+  const scheduleEnd = (ms: number) => {
+    clearEndTimer();
+    endTimer.current = setTimeout(startRinging, Math.max(0, ms));
+  };
 
   const value = useMemo<RestTimerContextValue>(
     () => ({
@@ -139,25 +124,31 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       setDefaultSeconds: (s) => setDefaultSecondsState(Math.max(5, Math.round(s))),
       alarmEnabled,
       setAlarmEnabled: (on) => setAlarmEnabledState(on),
-      remaining,
+      endsAt,
       running: endsAt !== null,
       alarming,
       startRest: (seconds) => {
         stopRinging();
-        firedRef.current = false;
-        setEndsAt(Date.now() + (seconds ?? defaultSeconds) * 1000);
-        setNow(Date.now());
+        const secs = seconds ?? defaultSeconds;
+        setEndsAt(Date.now() + secs * 1000);
+        scheduleEnd(secs * 1000);
       },
       addTime: (delta) =>
-        setEndsAt((cur) => (cur === null ? cur : Math.max(Date.now(), cur + delta * 1000))),
+        setEndsAt((cur) => {
+          if (cur === null) return cur;
+          const next = Math.max(Date.now(), cur + delta * 1000);
+          scheduleEnd(next - Date.now());
+          return next;
+        }),
       skip: () => {
+        clearEndTimer();
         stopRinging();
         setEndsAt(null);
       },
       stopAlarm: stopRinging,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [defaultSeconds, alarmEnabled, remaining, endsAt, alarming],
+    [defaultSeconds, alarmEnabled, endsAt, alarming],
   );
 
   return <RestTimerContext.Provider value={value}>{children}</RestTimerContext.Provider>;

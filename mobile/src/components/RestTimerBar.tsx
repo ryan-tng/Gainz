@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,19 +15,28 @@ function fmt(sec: number): string {
 
 /** Floating rest timer — counts down, then rings until dismissed. App-wide. */
 export function RestTimerBar() {
-  const { running, alarming, remaining, addTime, skip, stopAlarm } = useRestTimer();
+  const { running, alarming, endsAt, addTime, skip, stopAlarm } = useRestTimer();
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
+  const [now, setNow] = useState(Date.now());
+
+  // Tick locally (only this component re-renders) while counting down.
+  useEffect(() => {
+    if (endsAt === null) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, [endsAt]);
 
   if (!running && !alarming) return null;
 
-  // Ringing state — a prominent alarm banner you tap to dismiss.
+  const remaining = endsAt === null ? 0 : Math.max(0, Math.ceil((endsAt - now) / 1000));
+
   if (alarming) {
     return (
-      <View style={[styles.wrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
+      <View style={[styles.wrap, { bottom: insets.bottom + 72, pointerEvents: 'box-none' }]}>
         <View
-          style={[styles.bar, { backgroundColor: palette.accent, borderColor: palette.accent }]}
-          pointerEvents="box-none">
+          style={[styles.bar, { backgroundColor: palette.accent, borderColor: palette.accent, pointerEvents: 'box-none' }]}>
           <View style={styles.left}>
             <Ionicons name="alarm" size={20} color={palette.onAccent} />
             <Text style={[styles.ringLabel, { color: palette.onAccent }]}>Rest over</Text>
@@ -43,10 +53,9 @@ export function RestTimerBar() {
   }
 
   return (
-    <View style={[styles.wrap, { bottom: insets.bottom + 72 }]} pointerEvents="box-none">
+    <View style={[styles.wrap, { bottom: insets.bottom + 72, pointerEvents: 'box-none' }]}>
       <View
-        style={[styles.bar, { backgroundColor: palette.surface, borderColor: palette.border }]}
-        pointerEvents="box-none">
+        style={[styles.bar, { backgroundColor: palette.surface, borderColor: palette.border, pointerEvents: 'box-none' }]}>
         <View style={styles.left}>
           <Ionicons name="timer-outline" size={18} color={palette.accent} />
           <Text style={[styles.label, { color: palette.muted }]}>Rest</Text>
