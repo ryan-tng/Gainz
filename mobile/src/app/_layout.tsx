@@ -58,6 +58,7 @@ function ThemedApp() {
         <Stack.Screen name="machine/[id]" />
         <Stack.Screen name="machine/edit" options={{ presentation: 'card' }} />
         <Stack.Screen name="template/edit" options={{ presentation: 'card' }} />
+        <Stack.Screen name="template/import" options={{ presentation: 'card' }} />
         <Stack.Screen name="nutrition/goal" options={{ presentation: 'card' }} />
         <Stack.Screen name="nutrition/scan" options={{ presentation: 'card' }} />
         <Stack.Screen name="nutrition/add" options={{ presentation: 'card' }} />

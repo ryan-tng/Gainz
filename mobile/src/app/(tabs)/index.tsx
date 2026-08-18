@@ -661,9 +661,14 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
         {/* Templates — pick a workout to run */}
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>Your workouts</Text>
-          <Pressable onPress={() => router.push('/template/edit')} hitSlop={8}>
-            <Text style={styles.link}>+ New</Text>
-          </Pressable>
+          <View style={styles.sectionActions}>
+            <Pressable onPress={() => router.push('/template/import')} hitSlop={8}>
+              <Text style={styles.link}>Import</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/template/edit')} hitSlop={8}>
+              <Text style={styles.link}>+ New</Text>
+            </Pressable>
+          </View>
         </View>
 
         {templates.length === 0 ? (
@@ -1085,6 +1090,7 @@ const makeStyles = (palette: Palette) =>
   barLabel: { color: palette.muted, fontSize: 11, fontWeight: '600' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sectionActions: { flexDirection: 'row', gap: Spacing.four },
   sectionTitle: { color: palette.fg, fontSize: 18, fontWeight: '700' },
   link: { color: palette.accent, fontSize: 14, fontWeight: '700' },
 

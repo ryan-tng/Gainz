@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Modal, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
-import { confirmAsync } from '@/lib/confirm';
+import { confirmAsync, notify } from '@/lib/confirm';
+import { shareTemplate } from '@/lib/share';
 import { TEMPLATE_COLORS, TEMPLATE_ICONS } from '@/lib/templates';
 import type { Exercise, TemplateExercise, TemplateSet } from '@/lib/types';
 import { useTheme, useThemedStyles } from '@/store/theme';
@@ -34,8 +36,36 @@ export default function TemplateEditScreen() {
   const [color, setColor] = useState<string>(existing?.color ?? TEMPLATE_COLORS[0]);
   const [items, setItems] = useState<TemplateExercise[]>(existing?.exercises ?? []);
   const [picking, setPicking] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareCode, setShareCode] = useState<string | null>(null);
 
   const canSave = name.trim().length > 0 && items.length > 0;
+
+  const onShare = async () => {
+    if (!existing) return;
+    setSharing(true);
+    try {
+      const code = await shareTemplate(existing);
+      setShareCode(code); // show it in-app; sending is a second step
+    } catch (e) {
+      notify('Could not share', e instanceof Error ? e.message : 'Please try again.');
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const copyCode = async () => {
+    if (!shareCode) return;
+    await Clipboard.setStringAsync(shareCode);
+    notify('Copied', `Code ${shareCode} copied to clipboard.`);
+  };
+
+  const sendCode = () => {
+    if (!shareCode || !existing) return;
+    Share.share({
+      message: `Try my "${existing.name}" workout on Gainz 💪\n\nImport it with code: ${shareCode}`,
+    });
+  };
 
   const addSetTo = (exerciseId: string) =>
     setItems((cur) =>
@@ -261,6 +291,16 @@ export default function TemplateEditScreen() {
             />
             {existing ? (
               <AppButton
+                label={sharing ? 'Sharing…' : 'Share workout'}
+                icon="share-outline"
+                variant="secondary"
+                onPress={onShare}
+                disabled={sharing}
+                style={{ marginTop: Spacing.three }}
+              />
+            ) : null}
+            {existing ? (
+              <AppButton
                 label="Delete workout"
                 icon="trash-outline"
                 variant="danger"
@@ -279,6 +319,34 @@ export default function TemplateEditScreen() {
         onClose={() => setPicking(false)}
         onConfirm={addExercises}
       />
+
+      <Modal
+        visible={!!shareCode}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShareCode(null)}>
+        <View style={styles.shareOverlay}>
+          <View style={styles.shareCard}>
+            <Text style={styles.shareTitle}>Workout code</Text>
+            <Text style={styles.shareSub}>
+              Friends import it in Home → Import. Tap Share to send it.
+            </Text>
+            <View style={styles.codeBox}>
+              <Text style={styles.codeText}>{shareCode}</Text>
+            </View>
+            <AppButton label="Copy code" icon="copy-outline" variant="secondary" onPress={copyCode} />
+            <AppButton
+              label="Share…"
+              icon="share-outline"
+              onPress={sendCode}
+              style={{ marginTop: Spacing.two }}
+            />
+            <Pressable onPress={() => setShareCode(null)} hitSlop={8} style={styles.shareDone}>
+              <Text style={styles.shareDoneText}>Done</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -526,4 +594,38 @@ const makeStyles = (palette: Palette) =>
   selCircleOn: { backgroundColor: palette.accent, borderColor: palette.accent },
   addedTag: { color: palette.muted, fontSize: 13, fontWeight: '600' },
   pickerFooter: { padding: Spacing.four, borderTopColor: palette.border, borderTopWidth: 1 },
+
+  shareOverlay: {
+    flex: 1,
+    backgroundColor: '#000000aa',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.five,
+  },
+  shareCard: {
+    alignSelf: 'stretch',
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderWidth: 1,
+    borderRadius: Radius.xl,
+    padding: Spacing.five,
+  },
+  shareTitle: { color: palette.fg, fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  shareSub: {
+    color: palette.muted,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: Spacing.two,
+  },
+  codeBox: {
+    backgroundColor: palette.surface2,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.four,
+    alignItems: 'center',
+    marginVertical: Spacing.four,
+  },
+  codeText: { color: palette.accent, fontSize: 34, fontWeight: '800', letterSpacing: 6 },
+  shareDone: { alignItems: 'center', paddingVertical: Spacing.three, marginTop: Spacing.one },
+  shareDoneText: { color: palette.muted, fontSize: 15, fontWeight: '700' },
 });

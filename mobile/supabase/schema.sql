@@ -26,3 +26,25 @@ create policy "Users update own backup"
   on public.user_backups for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ---------- Shared workouts (send a template via a short code) ----------
+
+create table if not exists public.shared_templates (
+  code text primary key,
+  template jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.shared_templates enable row level security;
+
+-- Any signed-in user can create a share...
+create policy "Signed-in users create shares"
+  on public.shared_templates for insert
+  to authenticated
+  with check (true);
+
+-- ...and anyone signed in can read a share by its code (codes are random).
+create policy "Signed-in users read shares"
+  on public.shared_templates for select
+  to authenticated
+  using (true);
