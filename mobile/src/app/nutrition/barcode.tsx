@@ -123,7 +123,16 @@ const makeStyles = (palette: Palette) =>
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three, padding: Spacing.five },
     msg: { color: palette.muted, fontSize: 15, textAlign: 'center', maxWidth: 280, lineHeight: 21 },
     cameraWrap: { flex: 1, overflow: 'hidden' },
-    overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: Spacing.four },
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.four,
+    },
     frame: {
       width: 260,
       height: 160,

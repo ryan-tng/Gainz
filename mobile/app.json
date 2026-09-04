@@ -48,7 +48,8 @@
           "cameraPermission": "Gainz uses your camera to scan food barcodes."
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": false,
