@@ -29,3 +29,15 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
       },
     })
   : null;
+
+/**
+ * Bearer-token header for the current session, attached to calls to our paid
+ * AI backend so it can authenticate and rate-limit per user. Returns an empty
+ * object when signed out (the backend then rejects with 401).
+ */
+export async function authHeader(): Promise<Record<string, string>> {
+  if (!supabase) return {};
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}

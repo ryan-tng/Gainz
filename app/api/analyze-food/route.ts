@@ -1,9 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 
-// Vision model for food → calories. Opus 4.8 is the default; swap to
-// "claude-haiku-4-5" here if you want a cheaper/faster model at high volume.
-const MODEL = "claude-opus-4-8";
+import { guardAi } from "@/lib/aiGuard";
+
+// Vision model for food → calories. Haiku handles portion/calorie estimation
+// well at a fraction of Opus's cost — the right default for a high-volume,
+// user-facing scanner. Swap to "claude-opus-4-8" if you need more accuracy.
+const MODEL = "claude-haiku-4-5";
+
+// Max food scans per user per day (paid Claude calls — keep this sane).
+const DAILY_LIMIT = 25;
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
@@ -49,6 +55,9 @@ const NUTRITION_SCHEMA = {
 const SYSTEM = `You are a nutrition estimation assistant. Given a photo of food, identify each distinct food item, estimate a reasonable portion size, and estimate calories and macronutrients (protein, carbs, fat in grams). Base totals on the sum of the items. Be realistic and use common serving sizes when portion is ambiguous. If the image does not clearly contain food, return an empty items array with zero totals, confidence "low", and explain in notes.`;
 
 export async function POST(request: Request) {
+  const guard = await guardAi(request, { feature: "analyze-food", dailyLimit: DAILY_LIMIT });
+  if (!guard.ok) return guard.response;
+
   let body: { imageBase64?: unknown; mimeType?: unknown };
   try {
     body = await request.json();

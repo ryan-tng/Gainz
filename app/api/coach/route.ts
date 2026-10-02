@@ -1,8 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 
+import { guardAi } from "@/lib/aiGuard";
+
 // Coaching is reasoning-heavy, so we use the strongest model.
 const MODEL = "claude-opus-4-8";
+
+// Coaching plans are generated rarely; a low daily cap is plenty and keeps the
+// pricier model from being abused.
+const DAILY_LIMIT = 10;
 
 /**
  * Structured-output schema — Claude is constrained to return exactly this shape,
@@ -95,6 +101,9 @@ const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
 export async function POST(request: Request) {
+  const guard = await guardAi(request, { feature: "coach", dailyLimit: DAILY_LIMIT });
+  if (!guard.ok) return guard.response;
+
   let body: CoachRequest;
   try {
     body = await request.json();

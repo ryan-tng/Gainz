@@ -48,3 +48,49 @@ create policy "Signed-in users read shares"
   on public.shared_templates for select
   to authenticated
   using (true);
+
+-- ---------- AI usage rate limiting ----------
+-- Caps how many paid Claude calls (food scan, coach) a user can make per day,
+-- so a single account can't run up the Anthropic bill. The backend calls the
+-- increment_ai_usage() function below on every AI request.
+
+create table if not exists public.ai_usage (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  feature text not null,
+  day date not null default (now() at time zone 'utc')::date,
+  count int not null default 0,
+  primary key (user_id, feature, day)
+);
+
+-- RLS on with no policies: the table is only ever touched by the SECURITY
+-- DEFINER function below, never directly by clients.
+alter table public.ai_usage enable row level security;
+
+-- Atomically bump today's counter for the calling user + feature and report
+-- whether they're still within the limit. auth.uid() comes from the caller's
+-- JWT, so a user can only ever affect their own quota.
+create or replace function public.increment_ai_usage(p_feature text, p_limit int)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+  new_count int;
+begin
+  if uid is null then
+    return false;
+  end if;
+  insert into public.ai_usage (user_id, feature, day, count)
+  values (uid, p_feature, (now() at time zone 'utc')::date, 1)
+  on conflict (user_id, feature, day)
+  do update set count = public.ai_usage.count + 1
+  returning count into new_count;
+  return new_count <= p_limit;
+end;
+$$;
+
+-- Only signed-in users may call it; never anon.
+revoke all on function public.increment_ai_usage(text, int) from public;
+grant execute on function public.increment_ai_usage(text, int) to authenticated;

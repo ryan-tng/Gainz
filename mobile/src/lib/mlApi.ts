@@ -21,15 +21,22 @@ export async function getAdaptiveTdee(
   entries: FoodEntry[],
   goalRateLbPerWeek: number,
 ): Promise<AdaptiveTdee> {
-  const res = await fetch(`${ML_BASE_URL}/adaptive-tdee`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      weights: weights.map((w) => ({ at: w.loggedAt, lb: w.weightLb })),
-      intake: entries.map((e) => ({ at: e.loggedAt, kcal: e.calories })),
-      goalRateLbPerWeek,
-    }),
-  });
-  if (!res.ok) throw new Error('Could not compute your adaptive target. Please try again.');
+  let res: Response;
+  try {
+    res = await fetch(`${ML_BASE_URL}/adaptive-tdee`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        weights: weights.map((w) => ({ at: w.loggedAt, lb: w.weightLb })),
+        intake: entries.map((e) => ({ at: e.loggedAt, kcal: e.calories })),
+        goalRateLbPerWeek,
+      }),
+    });
+  } catch {
+    // fetch itself rejected: bad URL, service unreachable, or (free-tier) still
+    // waking up. Surface the address so misconfiguration is obvious.
+    throw new Error(`Can't reach the ML service at ${ML_BASE_URL}. Check EXPO_PUBLIC_ML_URL.`);
+  }
+  if (!res.ok) throw new Error(`ML service responded ${res.status}. It may still be waking up — try again in ~30s.`);
   return (await res.json()) as AdaptiveTdee;
 }

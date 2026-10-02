@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config';
+import { authHeader } from './supabase';
 import type { CoachContext, CoachPlan, Goal } from './types';
 
 /**
@@ -13,7 +14,7 @@ export async function getCoachPlan(
 ): Promise<CoachPlan> {
   const res = await fetch(`${API_BASE_URL}/api/coach`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
     body: JSON.stringify({ goal, weeksToGoal, recent }),
   });
 

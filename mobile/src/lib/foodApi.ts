@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config';
+import { authHeader } from './supabase';
 import type { FoodAnalysis } from './types';
 
 /** Send a base64 image to the backend and get an AI nutrition estimate. */
@@ -8,7 +9,7 @@ export async function analyzeFood(
 ): Promise<FoodAnalysis> {
   const res = await fetch(`${API_BASE_URL}/api/analyze-food`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
     body: JSON.stringify({ imageBase64, mimeType }),
   });
 

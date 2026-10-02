@@ -13,7 +13,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Max-Age": "86400",
 };
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   // Preflight
   if (req.method === "OPTIONS") {
     return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
