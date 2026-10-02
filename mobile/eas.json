@@ -1,0 +1,38 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": { "simulator": true }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://gainz-api.vercel.app",
+        "EXPO_PUBLIC_ML_URL": "https://gainz-ml.onrender.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ikrlmhcukkeeruffoutg.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_9ZqRWFFXAfk-FEuRZOJRoQ_bF58Wnkm"
+      }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "android": { "buildType": "app-bundle" },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://gainz-api.vercel.app",
+        "EXPO_PUBLIC_ML_URL": "https://gainz-ml.onrender.com",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ikrlmhcukkeeruffoutg.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_9ZqRWFFXAfk-FEuRZOJRoQ_bF58Wnkm"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
