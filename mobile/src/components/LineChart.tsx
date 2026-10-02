@@ -27,6 +27,8 @@ export function LineChart({
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
 
+  if (!values.length) return null;
+
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;

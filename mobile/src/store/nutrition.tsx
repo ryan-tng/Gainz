@@ -33,6 +33,8 @@ interface NutritionContextValue {
   coachName: string;
   setCoachName: (name: string) => void;
   setGoal: (input: GoalInput) => Goal;
+  /** Override just the daily calorie target (e.g. from the adaptive ML model). */
+  applyTargetCalories: (calories: number) => void;
   clearGoal: () => void;
   addEntry: (entry: NewFoodEntry) => void;
   updateEntry: (id: string, patch: Partial<Omit<FoodEntry, 'id' | 'loggedAt'>>) => void;
@@ -97,6 +99,10 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
         setCoach(null);
         return computed;
       },
+      applyTargetCalories: (calories) =>
+        setGoalState((cur) =>
+          cur ? { ...cur, targetCalories: Math.round(calories), updatedAt: Date.now() } : cur,
+        ),
       clearGoal: () => {
         setGoalState(null);
         setCoach(null);

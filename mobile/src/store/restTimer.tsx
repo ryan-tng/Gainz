@@ -55,7 +55,10 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       setLoaded(true);
     })();
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
-    return () => stopRinging();
+    return () => {
+      if (endTimer.current) clearTimeout(endTimer.current);
+      stopRinging();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

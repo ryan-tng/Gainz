@@ -85,18 +85,20 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           storage.loadTemplates(),
         ]);
 
+      // First run = no exercises stored yet. Only seed defaults on first run so a
+      // user who deletes all their templates doesn't get them recreated each launch.
+      const freshInstall = loadedExercises.length === 0;
+
       let ex = loadedExercises;
-      if (ex.length === 0) {
+      if (freshInstall) {
         ex = SEED_EXERCISES.map((e) => ({ ...e, id: uid('ex') }));
         await storage.saveExercises(ex);
       }
 
+      // Migrate stored templates to the current shape (in-memory; harmless if none).
       let tpl = normalizeTemplates(loadedTemplates);
-      if (tpl.length === 0) {
+      if (freshInstall && tpl.length === 0) {
         tpl = buildDefaultTemplates(ex);
-      }
-      // Persist if we seeded or migrated anything.
-      if (tpl !== loadedTemplates) {
         await storage.saveTemplates(tpl);
       }
 
