@@ -9,7 +9,6 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#08090b",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.ryantng.gainz",
       "supportsTablet": true,
       "infoPlist": {
