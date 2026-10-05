@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -23,22 +23,24 @@ import { useWorkouts } from '@/store/workouts';
 
 export default function ImportTemplateScreen() {
   const router = useRouter();
+  const { code: codeParam } = useLocalSearchParams<{ code?: string }>();
   const { addTemplate } = useWorkouts();
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState((codeParam ?? '').toUpperCase());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canImport = code.trim().length >= 4 && !busy;
 
-  const onImport = async () => {
-    if (!canImport) return;
+  const runImport = async (raw: string) => {
+    const value = raw.trim();
+    if (value.length < 4 || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const shared = await fetchSharedTemplate(code);
+      const shared = await fetchSharedTemplate(value);
       if (!shared) {
         setError('No workout found for that code. Double-check it and try again.');
         return;
@@ -57,6 +59,19 @@ export default function ImportTemplateScreen() {
       setBusy(false);
     }
   };
+
+  const onImport = () => runImport(code);
+
+  // Opened from a share link (gainz://template/import?code=…): import automatically.
+  const autoImported = useRef(false);
+  useEffect(() => {
+    const c = (codeParam ?? '').trim();
+    if (!autoImported.current && c.length >= 4) {
+      autoImported.current = true;
+      void runImport(c);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codeParam]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>

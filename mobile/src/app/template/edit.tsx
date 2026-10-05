@@ -9,7 +9,7 @@ import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { confirmAsync, notify } from '@/lib/confirm';
-import { shareTemplate } from '@/lib/share';
+import { buildShareLink, shareTemplate } from '@/lib/share';
 import { TEMPLATE_COLORS, TEMPLATE_ICONS } from '@/lib/templates';
 import type { Exercise, TemplateExercise, TemplateSet } from '@/lib/types';
 import { useTheme, useThemedStyles } from '@/store/theme';
@@ -60,10 +60,20 @@ export default function TemplateEditScreen() {
     notify('Copied', `Code ${shareCode} copied to clipboard.`);
   };
 
+  const copyLink = async () => {
+    if (!shareCode) return;
+    await Clipboard.setStringAsync(buildShareLink(shareCode));
+    notify('Copied', 'Share link copied to clipboard.');
+  };
+
   const sendCode = () => {
     if (!shareCode || !existing) return;
+    const link = buildShareLink(shareCode);
     Share.share({
-      message: `Try my "${existing.name}" workout on Gainz 💪\n\nImport it with code: ${shareCode}`,
+      message:
+        `Try my "${existing.name}" workout on Gainz 💪\n\n` +
+        `Tap to import: ${link}\n\n` +
+        `Or enter code ${shareCode} in Home → Import.`,
     });
   };
 
@@ -329,18 +339,33 @@ export default function TemplateEditScreen() {
           <View style={styles.shareCard}>
             <Text style={styles.shareTitle}>Workout code</Text>
             <Text style={styles.shareSub}>
-              Friends import it in Home → Import. Tap Share to send it.
+              Tap Share to send a link that imports it in one tap — or share the code for
+              Home → Import.
             </Text>
             <View style={styles.codeBox}>
               <Text style={styles.codeText}>{shareCode}</Text>
             </View>
-            <AppButton label="Copy code" icon="copy-outline" variant="secondary" onPress={copyCode} />
             <AppButton
               label="Share…"
               icon="share-outline"
               onPress={sendCode}
-              style={{ marginTop: Spacing.two }}
             />
+            <View style={styles.shareBtnRow}>
+              <AppButton
+                label="Copy link"
+                icon="link-outline"
+                variant="secondary"
+                onPress={copyLink}
+                style={styles.shareBtnHalf}
+              />
+              <AppButton
+                label="Copy code"
+                icon="copy-outline"
+                variant="secondary"
+                onPress={copyCode}
+                style={styles.shareBtnHalf}
+              />
+            </View>
             <Pressable onPress={() => setShareCode(null)} hitSlop={8} style={styles.shareDone}>
               <Text style={styles.shareDoneText}>Done</Text>
             </Pressable>
@@ -626,6 +651,8 @@ const makeStyles = (palette: Palette) =>
     marginVertical: Spacing.four,
   },
   codeText: { color: palette.accent, fontSize: 34, fontWeight: '800', letterSpacing: 6 },
+  shareBtnRow: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two },
+  shareBtnHalf: { flex: 1 },
   shareDone: { alignItems: 'center', paddingVertical: Spacing.three, marginTop: Spacing.one },
   shareDoneText: { color: palette.muted, fontSize: 15, fontWeight: '700' },
 });

@@ -1,3 +1,5 @@
+import * as Linking from 'expo-linking';
+
 import { supabase } from './supabase';
 import type { TemplateExercise, WorkoutTemplate } from './types';
 
@@ -33,6 +35,15 @@ export async function shareTemplate(t: WorkoutTemplate): Promise<string> {
     if (error.code !== '23505') throw new Error(error.message); // 23505 = duplicate code, retry
   }
   throw new Error('Could not create a share code. Please try again.');
+}
+
+/**
+ * A tappable deep link that opens the import screen with the code prefilled and
+ * auto-imports it. Opens the installed app on a device that has it (works for
+ * the native build and Expo Go). Recipients without the app should use the code.
+ */
+export function buildShareLink(code: string): string {
+  return Linking.createURL('/template/import', { queryParams: { code } });
 }
 
 /** Look up a shared template by its code. Returns null if not found. */
