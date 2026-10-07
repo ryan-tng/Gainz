@@ -99,20 +99,27 @@ export default function NutritionScreen() {
         />
         <View style={styles.logRow}>
           <AppButton
+            label="Scan barcode"
+            icon="barcode-outline"
+            variant="secondary"
+            onPress={() => router.push('/nutrition/barcode')}
+            style={styles.logBtn}
+          />
+          <AppButton
             label="Scan food"
             icon="camera"
             variant="secondary"
             onPress={() => router.push('/nutrition/scan')}
             style={styles.logBtn}
           />
-          <AppButton
-            label="Add manually"
-            icon="create-outline"
-            variant="secondary"
-            onPress={() => router.push('/nutrition/add')}
-            style={styles.logBtn}
-          />
         </View>
+        <AppButton
+          label="Add manually"
+          icon="create-outline"
+          variant="secondary"
+          onPress={() => router.push('/nutrition/add')}
+          style={{ marginTop: Spacing.three }}
+        />
 
         {goal ? (
           <AppButton
