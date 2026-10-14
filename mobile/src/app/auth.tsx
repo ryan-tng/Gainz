@@ -24,7 +24,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, resetPassword, user } = useAuth();
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -62,6 +62,23 @@ export default function AuthScreen() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onForgot = async () => {
+    if (!EMAIL_RE.test(email.trim())) {
+      setError('Enter your email above first, then tap Forgot password.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await resetPassword(email);
+      notify('Check your email', `We sent a password reset link to ${email.trim()}.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not send a reset email.');
     } finally {
       setBusy(false);
     }
@@ -130,6 +147,12 @@ export default function AuthScreen() {
             disabled={!valid || busy}
             style={{ marginTop: Spacing.five }}
           />
+
+          {mode === 'signin' ? (
+            <Pressable onPress={onForgot} hitSlop={8} disabled={busy} style={styles.forgot}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </Pressable>
+          ) : null}
 
           <Pressable
             onPress={() => {
@@ -208,6 +231,8 @@ const makeStyles = (palette: Palette) =>
       paddingVertical: Spacing.three,
     },
     error: { color: palette.danger, fontSize: 14, marginTop: Spacing.three, lineHeight: 19 },
-    toggle: { alignItems: 'center', marginTop: Spacing.four },
+    forgot: { alignItems: 'center', marginTop: Spacing.four },
+    forgotText: { color: palette.muted, fontSize: 14, fontWeight: '600' },
+    toggle: { alignItems: 'center', marginTop: Spacing.three },
     toggleText: { color: palette.accent, fontSize: 14, fontWeight: '700' },
   });

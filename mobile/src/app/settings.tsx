@@ -48,9 +48,37 @@ export default function SettingsScreen() {
   } = useTheme();
   const { coachName, setCoachName } = useNutrition();
   const { defaultSeconds, setDefaultSeconds, alarmEnabled, setAlarmEnabled } = useRestTimer();
-  const { configured, user, signOut } = useAuth();
+  const { configured, user, signOut, updatePassword } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const [coachNameDraft, setCoachNameDraft] = useState(coachName);
+
+  const [pwOpen, setPwOpen] = useState(false);
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+
+  const changePassword = async () => {
+    if (newPw.length < 6) {
+      notify('Password too short', 'Use at least 6 characters.');
+      return;
+    }
+    if (newPw !== confirmPw) {
+      notify("Passwords don't match", 'Re-enter the same password in both fields.');
+      return;
+    }
+    setPwBusy(true);
+    try {
+      await updatePassword(newPw);
+      setNewPw('');
+      setConfirmPw('');
+      setPwOpen(false);
+      notify('Password changed', 'Your password has been updated.');
+    } catch (e) {
+      notify('Could not change password', e instanceof Error ? e.message : 'Please try again.');
+    } finally {
+      setPwBusy(false);
+    }
+  };
 
   const pickBackgroundPhoto = async () => {
     const uri = await pickFromLibrary();
@@ -114,6 +142,47 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <Text style={styles.hint}>Your data syncs to your account automatically.</Text>
+
+            <AppButton
+              label={pwOpen ? 'Cancel' : 'Change password'}
+              icon="key-outline"
+              variant="secondary"
+              onPress={() => {
+                setPwOpen((o) => !o);
+                setNewPw('');
+                setConfirmPw('');
+              }}
+              style={{ marginTop: Spacing.two }}
+            />
+            {pwOpen ? (
+              <View style={styles.pwForm}>
+                <TextInput
+                  style={styles.input}
+                  value={newPw}
+                  onChangeText={setNewPw}
+                  placeholder="New password (min 6)"
+                  placeholderTextColor={palette.muted}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+                <TextInput
+                  style={styles.input}
+                  value={confirmPw}
+                  onChangeText={setConfirmPw}
+                  placeholder="Confirm new password"
+                  placeholderTextColor={palette.muted}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+                <AppButton
+                  label={pwBusy ? 'Saving…' : 'Save new password'}
+                  icon="checkmark"
+                  onPress={changePassword}
+                  disabled={pwBusy}
+                />
+              </View>
+            ) : null}
+
             <AppButton
               label="Sign out"
               icon="log-out-outline"
@@ -435,6 +504,7 @@ const makeStyles = (palette: Palette) =>
     },
     rowLabel: { color: palette.fg, fontSize: 15 },
     rowValue: { color: palette.muted, fontSize: 15 },
+    pwForm: { gap: Spacing.two, marginTop: Spacing.three },
     input: {
       color: palette.fg,
       fontSize: 16,

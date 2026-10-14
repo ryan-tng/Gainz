@@ -1,4 +1,5 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -7,7 +8,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RestTimerBar } from '@/components/RestTimerBar';
 import { darkPalette } from '@/constants/theme';
+import { parseAuthParams } from '@/lib/authLinks';
 import { storage } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import { backupToCloud } from '@/lib/sync';
 import { AuthProvider, useAuth } from '@/store/auth';
 import { MachinesProvider } from '@/store/machines';
@@ -37,8 +40,36 @@ function CloudSync() {
   return null;
 }
 
+/**
+ * Handles Supabase email links that deep-link back into the app. Recovery links
+ * go to the reset-password screen; confirmation/magic links just set the session
+ * (which signs the user in via onAuthStateChange).
+ */
+function useAuthDeepLinks() {
+  const url = Linking.useURL();
+  const router = useRouter();
+  const lastHandled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!url || !supabase || lastHandled.current === url) return;
+    const parsed = parseAuthParams(url);
+    if (!parsed) return;
+    lastHandled.current = url;
+    if (parsed.type === 'recovery') {
+      router.push({
+        pathname: '/reset-password',
+        params: { at: parsed.access_token, rt: parsed.refresh_token },
+      });
+    } else {
+      void supabase.auth
+        .setSession({ access_token: parsed.access_token, refresh_token: parsed.refresh_token })
+        .catch(() => {});
+    }
+  }, [url, router]);
+}
+
 function ThemedApp() {
   const { palette, isDark } = useTheme();
+  useAuthDeepLinks();
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -50,6 +81,7 @@ function ThemedApp() {
         }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth" options={{ presentation: 'card' }} />
+        <Stack.Screen name="reset-password" options={{ presentation: 'card' }} />
         <Stack.Screen name="profile" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings" options={{ presentation: 'card' }} />
         <Stack.Screen name="records" options={{ presentation: 'card' }} />
