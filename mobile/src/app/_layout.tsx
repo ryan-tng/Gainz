@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRootNavigationState, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -48,9 +48,13 @@ function CloudSync() {
 function useAuthDeepLinks() {
   const url = Linking.useURL();
   const router = useRouter();
+  // Only navigate once the root navigation tree is mounted. On a cold start (the
+  // email link launches the app), the effect can otherwise fire before the
+  // router is ready and the push is silently dropped.
+  const navReady = useRootNavigationState()?.key;
   const lastHandled = useRef<string | null>(null);
   useEffect(() => {
-    if (!url || !supabase || lastHandled.current === url) return;
+    if (!navReady || !url || !supabase || lastHandled.current === url) return;
     const parsed = parseAuthParams(url);
     if (!parsed) return;
     lastHandled.current = url;
@@ -64,7 +68,7 @@ function useAuthDeepLinks() {
         .setSession({ access_token: parsed.access_token, refresh_token: parsed.refresh_token })
         .catch(() => {});
     }
-  }, [url, router]);
+  }, [url, router, navReady]);
 }
 
 function ThemedApp() {

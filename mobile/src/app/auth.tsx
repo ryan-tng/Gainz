@@ -61,7 +61,11 @@ export default function AuthScreen() {
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      const msg = e instanceof Error ? e.message : 'Something went wrong.';
+      setError(msg);
+      // If they tried to create an account that already exists, drop them on the
+      // sign-in form with their email still filled in.
+      if (/already exists/i.test(msg)) setMode('signin');
     } finally {
       setBusy(false);
     }

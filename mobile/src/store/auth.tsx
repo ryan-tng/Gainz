@@ -110,7 +110,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Confirmation link returns to the app (deep link) instead of a web page.
           options: { emailRedirectTo: Linking.createURL('/') },
         });
-        if (error) throw new Error(error.message);
+        if (error) {
+          // With email confirmation OFF, a duplicate email errors outright.
+          if (/already registered|already exists|user already/i.test(error.message)) {
+            throw new Error('An account with this email already exists. Try signing in instead.');
+          }
+          throw new Error(error.message);
+        }
+        // With email confirmation ON, Supabase hides an existing account behind a
+        // fake success whose user has no linked identities — treat that as a dupe.
+        if (data.user && (data.user.identities?.length ?? 0) === 0) {
+          throw new Error('An account with this email already exists. Try signing in instead.');
+        }
         return data.session !== null; // false → needs email confirmation
       },
       signOut: async () => {
