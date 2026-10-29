@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RestTimerBar } from '@/components/RestTimerBar';
 import { darkPalette } from '@/constants/theme';
+import { notify } from '@/lib/confirm';
 import { parseAuthParams } from '@/lib/authLinks';
 import { storage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
@@ -66,6 +67,11 @@ function useAuthDeepLinks() {
     } else {
       void supabase.auth
         .setSession({ access_token: parsed.access_token, refresh_token: parsed.refresh_token })
+        .then(({ error }) => {
+          if (!error && parsed.type === 'signup') {
+            notify('Email verified', "You're all set — welcome to Gainz! 💪");
+          }
+        })
         .catch(() => {});
     }
   }, [url, router, navReady]);

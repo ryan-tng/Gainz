@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -32,6 +33,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const valid = EMAIL_RE.test(email.trim()) && password.length >= 6;
@@ -47,11 +49,14 @@ export default function AuthScreen() {
     try {
       if (mode === 'signin') {
         await signIn(email, password);
-        done();
+        // Don't navigate manually — signing in sets `user` and remounts the app
+        // tree, which lands on home on its own. Show an overlay until it does so
+        // the form can't be re-tapped mid-transition.
+        setCompleting(true);
       } else {
         const started = await signUp(email, password);
         if (started) {
-          done();
+          setCompleting(true);
         } else {
           setMode('signin');
           notify(
@@ -88,12 +93,24 @@ export default function AuthScreen() {
     }
   };
 
+  if (completing) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
+        <AppBackground />
+        <View style={styles.completing}>
+          <ActivityIndicator color={palette.accent} size="large" />
+          <Text style={styles.completingText}>Signing you in…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['top', 'bottom']}>
       <AppBackground />
       <View style={styles.topBar}>
         {canDismiss ? (
-          <Pressable onPress={() => router.back()} hitSlop={16} style={styles.side}>
+          <Pressable onPress={done} hitSlop={16} style={styles.side}>
             <Ionicons name="close" size={26} color={palette.fg} />
           </Pressable>
         ) : (
@@ -180,6 +197,8 @@ export default function AuthScreen() {
 const makeStyles = (palette: Palette) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: palette.bg },
+    completing: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
+    completingText: { color: palette.muted, fontSize: 15, fontWeight: '600' },
     topBar: {
       flexDirection: 'row',
       alignItems: 'center',
