@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton, EmptyState, Loading } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { exerciseIcon } from '@/lib/exerciseIcon';
 import { MUSCLE_GROUPS, type MuscleGroup } from '@/lib/types';
 import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
@@ -96,7 +97,7 @@ export default function ExercisesScreen() {
         renderItem={({ item }) => (
           <Pressable style={styles.row} onPress={() => router.push(`/exercise/${item.id}`)}>
             <View style={styles.rowIcon}>
-              <Ionicons name="barbell-outline" size={18} color={palette.accent} />
+              <Ionicons name={exerciseIcon(item.name, item.muscle)} size={18} color={palette.accent} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowName}>{item.name}</Text>
