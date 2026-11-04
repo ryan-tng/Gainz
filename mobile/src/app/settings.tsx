@@ -2,6 +2,7 @@ import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
@@ -11,6 +12,7 @@ import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { ACCENTS, GRADIENTS, Radius, Spacing, type Palette } from '@/constants/theme';
 import { confirmAsync, notify } from '@/lib/confirm';
+import { API_BASE_URL } from '@/lib/config';
 import { pickFromLibrary, usableImageUri } from '@/lib/images';
 import { storage } from '@/lib/storage';
 import { useAuth } from '@/store/auth';
@@ -48,7 +50,7 @@ export default function SettingsScreen() {
   } = useTheme();
   const { coachName, setCoachName } = useNutrition();
   const { defaultSeconds, setDefaultSeconds, alarmEnabled, setAlarmEnabled } = useRestTimer();
-  const { configured, user, signOut, updatePassword } = useAuth();
+  const { configured, user, signOut, updatePassword, deleteAccount } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const [coachNameDraft, setCoachNameDraft] = useState(coachName);
 
@@ -199,6 +201,35 @@ export default function SettingsScreen() {
                 ) {
                   await signOut();
                   router.replace('/');
+                }
+              }}
+              style={{ marginTop: Spacing.two }}
+            />
+
+            <AppButton
+              label="Delete account"
+              icon="trash-outline"
+              variant="danger"
+              onPress={async () => {
+                if (
+                  await confirmAsync({
+                    title: 'Delete account?',
+                    message:
+                      'This permanently deletes your account and all your data from the cloud — workouts, records, nutrition, and profile. This cannot be undone.',
+                    confirmText: 'Delete account',
+                    destructive: true,
+                  })
+                ) {
+                  try {
+                    await deleteAccount();
+                    notify('Account deleted', 'Your account and data have been permanently removed.');
+                    router.replace('/');
+                  } catch (e) {
+                    notify(
+                      'Could not delete account',
+                      e instanceof Error ? e.message : 'Please try again.',
+                    );
+                  }
                 }
               }}
               style={{ marginTop: Spacing.two }}
@@ -381,12 +412,23 @@ export default function SettingsScreen() {
           <Text style={styles.rowLabel}>Version</Text>
           <Text style={styles.rowValue}>{version}</Text>
         </View>
+        <Pressable
+          style={[styles.rowCard, { marginTop: Spacing.two }]}
+          onPress={() => Linking.openURL(`${API_BASE_URL}/privacy`)}>
+          <Text style={styles.rowLabel}>Privacy Policy</Text>
+          <Ionicons name="open-outline" size={18} color={palette.muted} />
+        </Pressable>
+        <Text style={styles.hint}>
+          Food &amp; barcode data from Open Food Facts (ODbL). Nutrition values are
+          community-sourced and may be incomplete — double-check important numbers.
+        </Text>
 
         {/* Danger zone */}
         <Text style={styles.sectionLabel}>Data</Text>
         <AppButton label="Reset app data" icon="trash-outline" variant="danger" onPress={resetData} />
         <Text style={styles.hint}>
-          Everything in Gainz is stored only on this device. Resetting clears it all.
+          Clears everything on this device. Your account&apos;s cloud backup is kept — sign in on
+          any device to restore it. To remove your data everywhere, use Delete account above.
         </Text>
       </ScrollView>
     </SafeAreaView>

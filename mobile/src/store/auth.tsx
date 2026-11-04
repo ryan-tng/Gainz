@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { API_BASE_URL } from '@/lib/config';
 import { storage } from '@/lib/storage';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { restoreFromCloud } from '@/lib/sync';
@@ -25,6 +26,8 @@ interface AuthContextValue {
   /** Returns true if a session started, false if email confirmation is required. */
   signUp: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
+  /** Permanently delete the account + cloud backup, then wipe this device. */
+  deleteAccount: () => Promise<void>;
   /** Change the password of the currently signed-in user. */
   updatePassword: (newPassword: string) => Promise<void>;
   /** Send a password-reset email with a link back into the app. */
@@ -127,6 +130,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         if (supabase) await supabase.auth.signOut();
         // Wipe all on-device personalization/data, then remount the app tree.
+        await storage.clearAll();
+        syncedRef.current = null;
+        setUser(null);
+        setResetKey((k) => k + 1);
+      },
+      deleteAccount: async () => {
+        if (!supabase) throw new Error('Cloud accounts are not configured.');
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) throw new Error('Please sign in again to delete your account.');
+        const res = await fetch(`${API_BASE_URL}/api/delete-account`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const d = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(d.error || 'Could not delete your account. Please try again.');
+        }
+        // Account is gone on the server — clear the local session + data and remount.
+        await supabase.auth.signOut().catch(() => {});
         await storage.clearAll();
         syncedRef.current = null;
         setUser(null);

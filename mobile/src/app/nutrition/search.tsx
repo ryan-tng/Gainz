@@ -129,6 +129,11 @@ export default function FoodSearchScreen() {
             <Text style={styles.rowCals}>{item.calories}</Text>
           </Pressable>
         )}
+        ListFooterComponent={
+          results.length > 0 ? (
+            <Text style={styles.attribution}>Nutrition data from Open Food Facts (ODbL)</Text>
+          ) : null
+        }
       />
     </SafeAreaView>
   );
@@ -148,6 +153,12 @@ const makeStyles = (palette: Palette) =>
     },
     side: { minWidth: 40 },
     topTitle: { color: palette.fg, fontSize: 17, fontWeight: '700' },
+    attribution: {
+      color: palette.muted,
+      fontSize: 11,
+      textAlign: 'center',
+      marginTop: Spacing.four,
+    },
     searchWrap: {
       flexDirection: 'row',
       alignItems: 'center',
