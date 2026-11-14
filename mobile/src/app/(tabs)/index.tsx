@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -23,6 +23,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
 import { formatDate, formatVolume } from '@/lib/format';
 import { usableImageUri } from '@/lib/images';
+import { checkInActiveStreaks, getSocialPendingCount } from '@/lib/social';
 import { computeDashboard, computeRecords } from '@/lib/stats';
 import {
   sessionStats,
@@ -164,8 +165,12 @@ function ActiveWorkoutHome({
       });
       if (!ok) return;
     }
+    const workoutName = active?.name;
     const id = finishWorkout();
-    if (id) router.push(`/session/${id}`);
+    if (id) {
+      void checkInActiveStreaks(workoutName); // self-reported streak credit (best-effort)
+      router.push(`/session/${id}`);
+    }
   };
 
   const onDiscard = async () => {
@@ -531,6 +536,19 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
+  const [pendingRequests, setPendingRequests] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      getSocialPendingCount()
+        .then((n) => alive && setPendingRequests(n))
+        .catch(() => {});
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
+
   const d = computeDashboard(sessions);
   const records = computeRecords(sessions);
   const topPRs = records.exercises.slice(0, 3);
@@ -580,9 +598,19 @@ function Dashboard({ onResumeView }: { onResumeView: () => void }) {
               </Text>
             </View>
           </View>
-          <Pressable onPress={() => router.push('/settings')} hitSlop={8} style={styles.gearBtn}>
-            <Ionicons name="settings-outline" size={22} color={palette.muted} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable onPress={() => router.push('/social')} hitSlop={8} style={styles.gearBtn}>
+              <Ionicons name="people-outline" size={22} color={palette.muted} />
+              {pendingRequests > 0 ? (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>{pendingRequests}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+            <Pressable onPress={() => router.push('/settings')} hitSlop={8} style={styles.gearBtn}>
+              <Ionicons name="settings-outline" size={22} color={palette.muted} />
+            </Pressable>
+          </View>
         </View>
 
         {active ? <ResumeCard active={active} onPress={onResumeView} /> : null}
@@ -856,6 +884,22 @@ const makeStyles = (palette: Palette) =>
   avatarImg: { width: 44, height: 44, borderRadius: Radius.full },
   greeting: { color: palette.muted, fontSize: 13 },
   profileName: { color: palette.fg, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  headerBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 18,
+    height: 18,
+    borderRadius: Radius.full,
+    backgroundColor: palette.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: palette.bg,
+  },
+  headerBadgeText: { color: '#ffffff', fontSize: 10, fontWeight: '800' },
   gearBtn: {
     width: 40,
     height: 40,

@@ -94,6 +94,9 @@ function ThemedApp() {
         <Stack.Screen name="reset-password" options={{ presentation: 'card' }} />
         <Stack.Screen name="profile" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings" options={{ presentation: 'card' }} />
+        <Stack.Screen name="social" options={{ presentation: 'card' }} />
+        <Stack.Screen name="streak/new" options={{ presentation: 'card' }} />
+        <Stack.Screen name="streak/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="records" options={{ presentation: 'card' }} />
         <Stack.Screen name="exercise/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="session/[id]" />
