@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -92,6 +92,12 @@ export default function AuthScreen() {
       setBusy(false);
     }
   };
+
+  // Signed in: go home. Signing in remounts the app tree (to load the account's
+  // cloud data), which re-creates this screen with `completing` reset, so this
+  // screen must leave on its own whenever a user exists. `user` is only set
+  // after the cloud pull finishes, so home opens with the account's data.
+  if (user) return <Redirect href="/" />;
 
   if (completing) {
     return (

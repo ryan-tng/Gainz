@@ -128,7 +128,9 @@ create policy "read own blocks"
 -- email/phone, excludes self + anyone blocked, and is rate limited.
 create or replace function public.search_users(q text)
 returns table (user_id uuid, username citext, display_name text)
-language plpgsql stable security definer set search_path = public as $$
+-- VOLATILE (the default), not STABLE: it writes to the rate-limit counter, and
+-- PostgREST runs STABLE functions in a read-only transaction.
+language plpgsql volatile security definer set search_path = public as $$
 declare uid uuid := auth.uid();
 begin
   if uid is null then return; end if;
@@ -139,7 +141,8 @@ begin
   return query
     select p.user_id, p.username, p.display_name
     from public.profiles p
-    where p.username ilike q || '%'
+    -- literal prefix match ("_" in a username is not a wildcard)
+    where left(p.username::text, length(q)) = lower(q)
       and p.user_id <> uid
       and not public.is_blocked(uid, p.user_id)
     order by p.username
