@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -26,6 +26,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Shared-key gate. Set ML_SHARED_SECRET on the service (Render env) and ship the
+# same value to the app as EXPO_PUBLIC_ML_KEY; requests must send it in the
+# X-Gainz-Key header. This stops drive-by hits on the public URL. It is NOT
+# strong auth — the key is embedded in the app and can be extracted — but the
+# endpoint is only cheap numpy math, so this just raises the bar past bots. If
+# the env var is unset (e.g. local dev) the gate is disabled.
+ML_SHARED_SECRET = os.environ.get("ML_SHARED_SECRET", "")
+
+
+def require_key(x_gainz_key: str | None = Header(default=None)) -> None:
+    if ML_SHARED_SECRET and x_gainz_key != ML_SHARED_SECRET:
+        raise HTTPException(status_code=401, detail="Invalid or missing key.")
 
 
 class WeightPoint(BaseModel):
@@ -49,7 +62,7 @@ def health() -> dict:
     return {"ok": True, "service": "gainz-ml"}
 
 
-@app.post("/adaptive-tdee")
+@app.post("/adaptive-tdee", dependencies=[Depends(require_key)])
 def adaptive_tdee(req: AdaptiveTdeeRequest) -> dict:
     result = compute_adaptive_tdee(
         weights=[w.model_dump() for w in req.weights],

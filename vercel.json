@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/cron/purge-streak-photos", "schedule": "0 9 * * *" }
+  ]
+}

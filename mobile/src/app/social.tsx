@@ -15,16 +15,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
+import { InitialAvatar, SegmentBar, StreakBadge, useStreakColors } from '@/components/StreakBits';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { confirmAsync, notify } from '@/lib/confirm';
-import { formatDate } from '@/lib/format';
+import { getPendingPhotos, timeLeftLabel, type PendingPhoto } from '@/lib/streakPending';
 import {
   blockUser,
   cancelFriendRequest,
+  cancelStreakInvite,
   claimUsername,
+  endsLabel,
   getMyProfile,
-  leaveStreak,
   listFriends,
   listIncomingRequests,
   listOutgoingRequests,
@@ -154,19 +156,22 @@ function FriendsHome({ profile }: { profile: Profile }) {
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [streaks, setStreaks] = useState<Streak[]>([]);
+  const [pending, setPending] = useState<PendingPhoto[]>([]);
 
   const refresh = useCallback(async () => {
     try {
-      const [f, inc, out, st] = await Promise.all([
+      const [f, inc, out, st, pend] = await Promise.all([
         listFriends(),
         listIncomingRequests(),
         listOutgoingRequests(),
         listStreaks(),
+        getPendingPhotos(),
       ]);
       setFriends(f);
       setIncoming(inc);
       setOutgoing(out);
       setStreaks(st);
+      setPending(pend);
     } catch {
       // transient; the lists just won't refresh
     }
@@ -239,19 +244,32 @@ function FriendsHome({ profile }: { profile: Profile }) {
     }
   };
 
-  const leaveStreakFlow = async (s: Streak) => {
-    const isInvite = s.invitedPending;
+  // There's no Leave for active streaks: they end on their own when a week is
+  // missed. Only pending invites can be declined (invitee) or cancelled (sender).
+  const declineStreakFlow = async (s: Streak) => {
     if (
       await confirmAsync({
-        title: isInvite ? 'Decline streak?' : 'Leave streak?',
-        message: isInvite
-          ? `Decline the "${s.name}" streak with @${s.friend.profile.username}?`
-          : `Leaving "${s.name}" ends it for both you and @${s.friend.profile.username}.`,
-        confirmText: isInvite ? 'Decline' : 'Leave',
+        title: 'Decline streak?',
+        message: `Decline the "${s.name}" streak with @${s.friend.profile.username}?`,
+        confirmText: 'Decline',
         destructive: true,
       })
     ) {
-      void guard(() => leaveStreak(s.id), 'Could not update streak');
+      void guard(() => respondStreakInvite(s.id, false), 'Could not decline');
+    }
+  };
+
+  const cancelInviteFlow = async (s: Streak) => {
+    if (
+      await confirmAsync({
+        title: 'Cancel invite?',
+        message: `Cancel your "${s.name}" streak invite to @${s.friend.profile.username}?`,
+        confirmText: 'Cancel invite',
+        cancelText: 'Keep',
+        destructive: true,
+      })
+    ) {
+      void guard(() => cancelStreakInvite(s.id), 'Could not cancel');
     }
   };
 
@@ -437,16 +455,33 @@ function FriendsHome({ profile }: { profile: Profile }) {
                 No streaks yet. Start one with a friend to keep each other training.
               </Text>
             ) : null}
-            {streaks.map((s) => (
-              <StreakCard
-                key={s.id}
-                streak={s}
-                onAccept={() => guard(() => respondStreakInvite(s.id, true), 'Could not accept')}
-                onDecline={() => guard(() => respondStreakInvite(s.id, false), 'Could not decline')}
-                onLeave={() => leaveStreakFlow(s)}
-                onOpen={() => router.push(`/streak/${s.id}`)}
-              />
-            ))}
+            {streaks.map((s) => {
+              const pend = pending.find((x) => x.streakId === s.id);
+              return (
+                <StreakCard
+                  key={s.id}
+                  streak={s}
+                  pending={pend}
+                  onAccept={() => guard(() => respondStreakInvite(s.id, true), 'Could not accept')}
+                  onDecline={() => declineStreakFlow(s)}
+                  onCancel={() => cancelInviteFlow(s)}
+                  onOpen={() => router.push(`/streak/${s.id}`)}
+                  onRestart={() => router.push({ pathname: '/streak/new', params: { friend: s.friend.profile.user_id } })}
+                  onSnap={() =>
+                    pend &&
+                    router.push({
+                      pathname: '/streak/photo',
+                      params: {
+                        ids: s.id,
+                        label: pend.label ?? '',
+                        finishedAt: String(pend.finishedAt),
+                        to: `@${s.friend.profile.username} · ${s.name}`,
+                      },
+                    })
+                  }
+                />
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -454,45 +489,105 @@ function FriendsHome({ profile }: { profile: Profile }) {
   );
 }
 
+/** Status line under a live streak's bars: on track / at risk / still to go. */
+function streakStatusLine(s: Streak, colors: ReturnType<typeof useStreakColors>, palette: Palette) {
+  const p = s.progress!;
+  const friend = s.friend.profile.username;
+  const ends = endsLabel(p);
+  const Ends = ends.charAt(0).toUpperCase() + ends.slice(1);
+  const myLeft = Math.max(0, p.me.target - p.me.count);
+  const frLeft = Math.max(0, p.friend.target - p.friend.count);
+  const more = (n: number) => `${n} more workout${n === 1 ? '' : 's'}`;
+  if (p.bothMetThisCycle) return { text: `On track · ${ends}`, color: palette.accent };
+  if (p.atRisk) {
+    return {
+      text: myLeft ? `${Ends} · you need ${more(myLeft)}` : `${Ends} · @${friend} needs ${more(frLeft)}`,
+      color: colors.risk,
+    };
+  }
+  return { text: `${myLeft ? `${more(myLeft)} for you` : `Waiting on @${friend}`} · ${ends}`, color: palette.muted };
+}
+
 function StreakCard({
   streak: s,
+  pending,
   onAccept,
   onDecline,
-  onLeave,
+  onCancel,
   onOpen,
+  onRestart,
+  onSnap,
 }: {
   streak: Streak;
+  pending?: PendingPhoto;
   onAccept: () => void;
   onDecline: () => void;
-  onLeave: () => void;
+  onCancel: () => void;
   onOpen: () => void;
+  onRestart: () => void;
+  onSnap: () => void;
 }) {
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const missText = s.on_miss === 'reset' ? 'resets to 0' : 'pauses';
+  const colors = useStreakColors();
   const friend = s.friend.profile.username;
+  const p = s.progress;
+  const atRisk = !!p?.atRisk;
+
+  if (s.lost) {
+    return (
+      <View style={[styles.streakCard, styles.streakLost]} accessibilityLabel={`${s.name} with ${friend}, lost`}>
+        <View style={styles.streakHead}>
+          <InitialAvatar name={friend} size={42} dim />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.streakName, { color: palette.muted }]} numberOfLines={1}>
+              {s.name}
+            </Text>
+            <Text style={styles.streakWith}>with @{friend}</Text>
+          </View>
+          <StreakBadge streak={s} size={18} />
+        </View>
+        <Text style={styles.rulesNote}>A week was missed, so this streak ended.</Text>
+        <AppButton label="Start a new streak" icon="flame" variant="secondary" onPress={onRestart} style={{ marginTop: Spacing.three }} />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.streakCard}>
+    <View
+      style={[styles.streakCard, atRisk && { borderColor: colors.risk, borderWidth: 1.5 }]}
+      accessibilityLabel={`${s.name} with ${friend}${atRisk ? ', at risk' : ''}`}>
       <View style={styles.streakHead}>
-        <Ionicons name="flame" size={20} color={palette.accent} />
-        <Text style={styles.streakName} numberOfLines={1}>
-          {s.name}
-        </Text>
-        <View style={styles.statusPill}>
-          <Text style={styles.statusText}>
-            {s.status === 'active' ? 'Active' : s.invitedPending ? 'Invite' : 'Pending'}
+        <InitialAvatar name={friend} size={42} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.streakName} numberOfLines={1}>
+            {s.name}
+          </Text>
+          <Text style={styles.streakWith} numberOfLines={1}>
+            with @{friend} · {s.me.target === s.friend.target ? `${s.me.target} a week` : `you ${s.me.target}, them ${s.friend.target} a week`}
           </Text>
         </View>
+        {p ? (
+          <StreakBadge streak={s} size={22} />
+        ) : (
+          <View style={styles.statusPill}>
+            <Text style={styles.statusText}>{s.invitedPending ? 'Invite' : 'Pending'}</Text>
+          </View>
+        )}
       </View>
-      <Text style={styles.streakWith}>with @{friend}</Text>
-      <Text style={styles.streakTargets}>
-        You {s.me.target}/wk · @{friend} {s.friend.target}/wk · miss → {missText}
-      </Text>
+      {s.photo_required ? (
+        <View style={styles.photoChip}>
+          <Ionicons name="camera" size={12} color={palette.accent} />
+          <Text style={styles.photoChipText}>Photo proof</Text>
+        </View>
+      ) : null}
+
       {s.invitedPending ? (
         <>
           <Text style={styles.rulesNote}>
-            A workout counts when you complete a session in Gainz (self-reported). 7-day cycles.
+            A workout counts when you finish a session in Gainz (self-reported). Weeks run 7 days from
+            when you accept. Miss a week and the streak ends.
+            {s.photo_required ? ' Each workout needs a photo taken in the app.' : ''}
           </Text>
           <View style={styles.streakActions}>
             <AppButton label="Accept" icon="checkmark" onPress={onAccept} style={{ flex: 1 }} />
@@ -502,85 +597,49 @@ function StreakCard({
       ) : s.waitingOnFriend ? (
         <View style={styles.streakFooter}>
           <Text style={styles.waiting}>Waiting for @{friend} to accept</Text>
-          <Pressable onPress={onLeave} hitSlop={6}>
+          <Pressable onPress={onCancel} hitSlop={6}>
             <Text style={styles.linkMuted}>Cancel</Text>
           </Pressable>
         </View>
-      ) : (
+      ) : p ? (
         <>
-          {s.progress ? (
-            <>
-              <View style={styles.banner}>
-                <Ionicons name="flame" size={16} color={palette.accent} />
-                <Text style={styles.bannerText}>
-                  {s.progress.consecutive > 0
-                    ? `${s.progress.consecutive}-cycle streak`
-                    : `Cycle ${s.progress.cycleIndex + 1}`}
-                </Text>
-                <Text style={styles.bannerSub}>
-                  {s.progress.bothMetThisCycle
-                    ? 'On track ✓'
-                    : `ends ${formatDate(s.progress.cycleEnd)}`}
-                </Text>
+          {pending ? (
+            <Pressable onPress={onSnap} style={styles.pendingBanner} accessibilityRole="button">
+              <Ionicons name="camera" size={18} color={palette.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pendingTitle}>Snap your photo to count this workout</Text>
+                <Text style={styles.pendingSub}>{timeLeftLabel(pending.finishedAt)}</Text>
               </View>
-              <ProgressBar
-                label="You"
-                count={s.progress.me.count}
-                target={s.progress.me.target}
-                palette={palette}
-              />
-              <ProgressBar
-                label={`@${friend}`}
-                count={s.progress.friend.count}
-                target={s.progress.friend.target}
-                palette={palette}
-              />
-            </>
+              <Text style={styles.linkAccent}>Snap</Text>
+            </Pressable>
           ) : null}
+          {[
+            { who: 'You', c: p.me },
+            { who: `@${friend}`, c: p.friend },
+          ].map(({ who, c }) => (
+            <View key={who} style={styles.pbRow}>
+              <Text style={styles.pbLabel} numberOfLines={1}>
+                {who}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <SegmentBar count={c.count} target={c.target} height={8} color={atRisk && !c.met ? colors.risk : undefined} />
+              </View>
+              <Text style={styles.pbCount}>
+                {c.count}/{c.target}
+              </Text>
+            </View>
+          ))}
+          {(() => {
+            const st = streakStatusLine(s, colors, palette);
+            return <Text style={[styles.statusLine, { color: st.color }]}>{st.text}</Text>;
+          })()}
           <View style={styles.streakFooter}>
             <Pressable onPress={onOpen} hitSlop={6}>
               <Text style={styles.linkAccent}>View details ›</Text>
             </Pressable>
-            <Pressable onPress={onLeave} hitSlop={6}>
-              <Text style={styles.linkDanger}>Leave</Text>
-            </Pressable>
           </View>
         </>
-      )}
-    </View>
-  );
-}
-
-function ProgressBar({
-  label,
-  count,
-  target,
-  palette,
-}: {
-  label: string;
-  count: number;
-  target: number;
-  palette: Palette;
-}) {
-  const styles = useThemedStyles(makeStyles);
-  const pct = target > 0 ? Math.min(1, count / target) : 0;
-  const met = count >= target;
-  return (
-    <View style={styles.pbRow}>
-      <Text style={styles.pbLabel} numberOfLines={1}>
-        {label}
-      </Text>
-      <View style={styles.pbTrack}>
-        <View
-          style={[
-            styles.pbFill,
-            { width: `${pct * 100}%`, backgroundColor: met ? palette.accent : palette.accent2 },
-          ]}
-        />
-      </View>
-      <Text style={styles.pbCount}>
-        {count}/{target}
-      </Text>
+      ) : null}
     </View>
   );
 }
@@ -773,14 +832,32 @@ const makeStyles = (palette: Palette) =>
     bannerText: { flex: 1, color: palette.fg, fontSize: 13, fontWeight: '800' },
     bannerSub: { color: palette.muted, fontSize: 12, fontWeight: '700' },
     pbRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.two },
-    pbLabel: { color: palette.muted, fontSize: 12, width: 64 },
-    pbTrack: {
-      flex: 1,
-      height: 8,
+    pbLabel: { color: palette.muted, fontSize: 13, width: 72 },
+    pbCount: { color: palette.fg, fontSize: 13, fontWeight: '700', width: 36, textAlign: 'right' },
+    statusLine: { fontSize: 13, fontWeight: '600', marginTop: Spacing.three },
+    streakLost: { backgroundColor: palette.bg, opacity: 0.95 },
+    photoChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
       borderRadius: Radius.full,
       backgroundColor: palette.surface2,
-      overflow: 'hidden',
+      marginTop: Spacing.two,
     },
-    pbFill: { height: '100%', borderRadius: Radius.full },
-    pbCount: { color: palette.fg, fontSize: 12, fontWeight: '700', width: 40, textAlign: 'right' },
+    photoChipText: { color: palette.accent, fontSize: 12, fontWeight: '700' },
+    pendingBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.three,
+      borderColor: palette.accent,
+      borderWidth: 1,
+      borderRadius: Radius.md,
+      padding: Spacing.three,
+      marginTop: Spacing.three,
+    },
+    pendingTitle: { color: palette.fg, fontSize: 14, fontWeight: '700' },
+    pendingSub: { color: palette.muted, fontSize: 12, marginTop: 2 },
   });

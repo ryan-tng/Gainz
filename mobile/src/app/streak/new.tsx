@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,13 +18,14 @@ import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { notify } from '@/lib/confirm';
-import { createStreak, listFriends, type OnMiss, type Profile } from '@/lib/social';
+import { createStreak, listFriends, type Profile } from '@/lib/social';
 import { useTheme, useThemedStyles } from '@/store/theme';
 
 const PRESETS = [2, 3, 4] as const;
 
 export default function NewStreakScreen() {
   const router = useRouter();
+  const { friend: friendParam } = useLocalSearchParams<{ friend?: string }>();
   const { palette } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -37,7 +38,7 @@ export default function NewStreakScreen() {
   const [customTarget, setCustomTarget] = useState('3');
   const [sameTarget, setSameTarget] = useState(true);
   const [friendTargetInput, setFriendTargetInput] = useState('3');
-  const [onMiss, setOnMiss] = useState<OnMiss>('reset');
+  const [photoRequired, setPhotoRequired] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -45,7 +46,9 @@ export default function NewStreakScreen() {
       try {
         const f = await listFriends();
         setFriends(f);
-        if (f.length === 1) setFriendId(f[0].user_id);
+        // "Start a new streak" from a lost streak preselects that friend.
+        if (friendParam && f.some((x) => x.user_id === friendParam)) setFriendId(friendParam);
+        else if (f.length === 1) setFriendId(f[0].user_id);
       } finally {
         setLoading(false);
       }
@@ -66,7 +69,7 @@ export default function NewStreakScreen() {
     if (!valid || !friendId || busy) return;
     setBusy(true);
     try {
-      await createStreak(name, friendId, myTarget, friendTarget, onMiss);
+      await createStreak(name, friendId, myTarget, friendTarget, photoRequired);
       const friend = friends.find((f) => f.user_id === friendId);
       notify('Invite sent', `@${friend?.username ?? 'your friend'} needs to accept before the streak starts.`);
       router.back();
@@ -183,25 +186,36 @@ export default function NewStreakScreen() {
               </>
             ) : null}
 
-            <Text style={styles.label}>If someone misses their goal</Text>
-            <View style={styles.row}>
-              <Pressable onPress={() => setOnMiss('reset')} style={[styles.choice, onMiss === 'reset' && styles.pillOn]}>
-                <Text style={[styles.choiceText, onMiss === 'reset' && styles.pillTextOn]}>Reset to 0</Text>
-              </Pressable>
-              <Pressable onPress={() => setOnMiss('pause')} style={[styles.choice, onMiss === 'pause' && styles.pillOn]}>
-                <Text style={[styles.choiceText, onMiss === 'pause' && styles.pillTextOn]}>Pause count</Text>
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.switchLabel}>Photo proof</Text>
+                <Text style={styles.switchSub}>
+                  After each workout, snap a photo in the app to count it. No camera-roll photos.
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setPhotoRequired((v) => !v)}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: photoRequired }}
+                accessibilityLabel="Photo proof"
+                style={[styles.toggle, photoRequired && styles.toggleOn]}>
+                <View style={[styles.knob, photoRequired && styles.knobOn]} />
               </Pressable>
             </View>
 
             {/* Review */}
             <View style={styles.review}>
               <Text style={styles.reviewTitle}>Rules you&apos;re both agreeing to</Text>
-              <Text style={styles.reviewLine}>• A workout counts when you complete a session in Gainz (self-reported).</Text>
+              <Text style={styles.reviewLine}>• A workout counts when you finish a session in Gainz (self-reported).</Text>
               <Text style={styles.reviewLine}>• You: {myTarget || '—'} workouts/week · Friend: {friendTarget || '—'} workouts/week.</Text>
-              <Text style={styles.reviewLine}>• Each cycle is 7 days, starting when your friend accepts.</Text>
-              <Text style={styles.reviewLine}>
-                • Miss a target and the streak {onMiss === 'reset' ? 'resets to 0' : 'pauses (count freezes)'}.
-              </Text>
+              <Text style={styles.reviewLine}>• Weeks run 7 days, starting when your friend accepts.</Text>
+              <Text style={styles.reviewLine}>• If either of you misses a week, the streak ends. There&apos;s no leaving it.</Text>
+              {photoRequired ? (
+                <Text style={styles.reviewLine}>
+                  • Each workout needs a photo taken in the app within 2 hours. Only you two can see it, and
+                  it&apos;s deleted after 7 days.
+                </Text>
+              ) : null}
             </View>
 
             <AppButton

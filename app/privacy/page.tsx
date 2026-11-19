@@ -3,7 +3,7 @@ export const metadata = {
   description: "How the Gainz app collects, uses, and protects your data.",
 };
 
-const UPDATED = "November 3, 2026";
+const UPDATED = "November 18, 2026";
 const CONTACT = "support@joingainz.com";
 
 const wrap: React.CSSProperties = {
@@ -50,6 +50,17 @@ export default function PrivacyPolicy() {
           used to build a profile of you.
         </li>
         <li style={li}>
+          <b>Friends &amp; streaks:</b> your username, your friend connections, and streak check-ins
+          (that you finished a workout, and exercise names only if you turn on label sharing). These
+          are visible only to the friend you share that streak with.
+        </li>
+        <li style={li}>
+          <b>Streak proof photos:</b> if you and a friend turn on photo proof for a streak, the photo
+          you take in the app after a workout is shared only with that friend. Photos are stored
+          privately and automatically deleted after 7 days. You can report a photo from the
+          streak&apos;s activity, and blocking someone ends your streaks with them.
+        </li>
+        <li style={li}>
           <b>Coaching inputs:</b> when you request an AI coaching plan, a summary of your goal and
           recent activity is sent to our AI provider to generate the plan.
         </li>
@@ -81,8 +92,10 @@ export default function PrivacyPolicy() {
       <h2 style={h2}>Data storage &amp; retention</h2>
       <p>
         Your data is stored on your device and backed up to your account so it can be restored on a
-        new device. We keep your data for as long as your account exists. Data is encrypted in
-        transit, and access to your account&apos;s records is restricted to you.
+        new device. We keep your data for as long as your account exists, except streak proof
+        photos, which are deleted after 7 days. Data is encrypted in transit, and access to your
+        account&apos;s records is restricted to you (and, for streaks, the friend you share them
+        with).
       </p>
 
       <h2 style={h2}>Deleting your account and data</h2>

@@ -37,6 +37,22 @@ export async function POST(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   await admin.from("user_backups").delete().eq("user_id", userId);
+
+  // Streak proof photos live in Storage (not cascaded by the DB), under
+  // <userId>/<streakId>/… — remove them in batches before deleting the user.
+  for (let i = 0; i < 20; i++) {
+    const { data: paths, error } = await admin.rpc("streak_photo_paths", {
+      p_older_than_days: null,
+      p_user: userId,
+    });
+    const list = (paths ?? []) as string[];
+    if (error || list.length === 0) break;
+    const { error: rmErr } = await admin.storage.from("streak-photos").remove(list);
+    if (rmErr) {
+      console.error("delete-account photo cleanup error:", rmErr);
+      break;
+    }
+  }
   const { error: delErr } = await admin.auth.admin.deleteUser(userId);
   if (delErr) {
     console.error("delete-account error:", delErr);

@@ -2,7 +2,41 @@ import { NextResponse } from "next/server";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Best-effort per-IP rate limit. This endpoint is unauthenticated (public signup),
+// so there's no user id to key on. The map lives in the serverless instance's
+// memory, so it only blunts bursts hitting the same warm instance — it's not a
+// hard global cap, but it stops a single client from hammering the Kit API. For
+// a strict cap you'd move this to Redis/Upstash or a Vercel edge KV.
+const WINDOW_MS = 60_000; // 1 minute
+const MAX_PER_WINDOW = 5;
+const hits = new Map<string, number[]>();
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
+  recent.push(now);
+  hits.set(ip, recent);
+  // Opportunistic cleanup so the map doesn't grow unbounded.
+  if (hits.size > 5_000) {
+    for (const [k, v] of hits) {
+      if (v.every((t) => now - t >= WINDOW_MS)) hits.delete(k);
+    }
+  }
+  return recent.length > MAX_PER_WINDOW;
+}
+
 export async function POST(request: Request) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  if (rateLimited(ip)) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again in a minute." },
+      { status: 429 },
+    );
+  }
+
   let email: unknown;
   try {
     ({ email } = await request.json());

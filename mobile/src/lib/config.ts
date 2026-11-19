@@ -20,3 +20,11 @@ export const API_BASE_URL = trimSlash(
 export const ML_BASE_URL = trimSlash(
   process.env.EXPO_PUBLIC_ML_URL ?? 'http://192.168.68.51:8000',
 );
+
+/**
+ * Shared key the ML service checks (X-Gainz-Key header). Set EXPO_PUBLIC_ML_KEY
+ * to the same value as the service's ML_SHARED_SECRET. Not strong auth (it ships
+ * in the bundle), just a gate against drive-by hits on the public URL. Empty in
+ * local dev means no header is sent and the service's gate stays off.
+ */
+export const ML_KEY = process.env.EXPO_PUBLIC_ML_KEY ?? '';

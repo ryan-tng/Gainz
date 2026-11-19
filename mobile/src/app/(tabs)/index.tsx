@@ -23,7 +23,7 @@ import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
 import { formatDate, formatVolume } from '@/lib/format';
 import { usableImageUri } from '@/lib/images';
-import { checkInActiveStreaks, getSocialPendingCount } from '@/lib/social';
+import { getSocialPendingCount } from '@/lib/social';
 import { computeDashboard, computeRecords } from '@/lib/stats';
 import {
   sessionStats,
@@ -165,12 +165,10 @@ function ActiveWorkoutHome({
       });
       if (!ok) return;
     }
-    const workoutName = active?.name;
     const id = finishWorkout();
-    if (id) {
-      void checkInActiveStreaks(workoutName); // self-reported streak credit (best-effort)
-      router.push(`/session/${id}`);
-    }
+    // The finished-workout screen runs the streak check-in (toast, or one sheet
+    // when a photo streak is involved).
+    if (id) router.push(`/session/${id}?checkin=1`);
   };
 
   const onDiscard = async () => {

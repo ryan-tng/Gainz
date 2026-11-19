@@ -167,13 +167,15 @@ export type StreakStatus = 'pending' | 'active' | 'ended';
 export type OnMiss = 'reset' | 'pause';
 
 export interface StreakProgress {
-  cycleIndex: number; // 0-based cycle from started_at
+  cycleIndex: number; // 0-based week from started_at
   cycleStart: number; // ms
   cycleEnd: number; // ms
   me: { count: number; target: number; met: boolean };
   friend: { count: number; target: number; met: boolean };
   bothMetThisCycle: boolean;
-  consecutive: number; // completed cycles both passed (reset/pause aware)
+  consecutive: number; // finished weeks in a row both hit the target
+  /** Under 2 days left in the week and someone is still behind. */
+  atRisk: boolean;
 }
 
 export interface Streak {
@@ -184,6 +186,12 @@ export interface Streak {
   on_miss: OnMiss;
   started_at: string | null;
   created_at: string;
+  photo_required: boolean;
+  ended_reason: string | null;
+  ended_at: string | null;
+  lost_at_count: number | null;
+  /** Ended because someone missed a week (shown for 7 days as "Lost at N"). */
+  lost: boolean;
   me: { target: number; accepted: boolean; shareLabels: boolean };
   friend: { profile: Profile; target: number; accepted: boolean; shareLabels: boolean };
   invitedPending: boolean; // I'm the invitee and haven't accepted yet
@@ -191,15 +199,22 @@ export interface Streak {
   progress?: StreakProgress; // present for active streaks
 }
 
+export type Reaction = 'fire' | 'muscle';
+
 export interface ActivityEvent {
   id: string;
   mine: boolean;
   username: string; // "You" or the friend's handle
-  delta: number; // +1 credit, -1 correction
-  source: 'app' | 'manual';
+  delta: number; // +1 credit, -1 correction/skip
+  source: 'app' | 'manual' | 'photo' | 'skip';
   note: string | null;
   label: string | null;
   created_at: string;
+  /** Signed URL for a proof photo (null once expired after 7 days). */
+  photoUrl: string | null;
+  hadPhoto: boolean;
+  reactions: { fire: number; muscle: number };
+  myReaction: Reaction | null;
 }
 
 interface StreakRow {
@@ -210,6 +225,10 @@ interface StreakRow {
   on_miss: OnMiss;
   started_at: string | null;
   created_at: string;
+  photo_required: boolean;
+  ended_reason: string | null;
+  ended_at: string | null;
+  lost_at_count: number | null;
 }
 interface MemberRow {
   streak_id: string;
@@ -268,29 +287,56 @@ function computeProgress(
     for (let i = passed.length - 1; i >= 0 && passed[i]; i--) consecutive++;
   }
 
+  const cycleEnd = cycleStart + cycleMs;
+  const bothMet = myCount >= myTarget && frCount >= friendTarget;
   return {
     cycleIndex,
     cycleStart,
-    cycleEnd: cycleStart + cycleMs,
+    cycleEnd,
     me: { count: myCount, target: myTarget, met: myCount >= myTarget },
     friend: { count: frCount, target: friendTarget, met: frCount >= friendTarget },
-    bothMetThisCycle: myCount >= myTarget && frCount >= friendTarget,
+    bothMetThisCycle: bothMet,
     consecutive,
+    atRisk: !bothMet && cycleEnd - Date.now() < 2 * DAY_MS,
   };
 }
 
-/** All non-ended streaks the user is part of, with the friend's profile joined. */
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** "resets Thu", or when at risk "ends today" / "ends tomorrow" / "ends in 5h". */
+export function endsLabel(p: StreakProgress): string {
+  const left = p.cycleEnd - Date.now();
+  if (!p.atRisk) return `resets ${WEEKDAYS[new Date(p.cycleEnd).getDay()]}`;
+  if (left < 12 * 3_600_000) return `ends in ${Math.max(1, Math.ceil(left / 3_600_000))}h`;
+  const endDay = new Date(p.cycleEnd).toDateString();
+  return endDay === new Date().toDateString() ? 'ends today' : 'ends tomorrow';
+}
+
+const STREAK_COLS =
+  'id, name, creator, status, on_miss, started_at, created_at, photo_required, ended_reason, ended_at, lost_at_count';
+
+/**
+ * Streaks the user is part of: pending + active, plus streaks lost in the last
+ * 7 days (shown as "Lost at N"). Lost streaks are settled server-side first.
+ */
 export async function listStreaks(): Promise<Streak[]> {
   if (!supabase) return [];
   const uid = await myId();
   if (!uid) return [];
-  const { data: sData, error: sErr } = await supabase
-    .from('streaks')
-    .select('id, name, creator, status, on_miss, started_at, created_at')
-    .neq('status', 'ended')
-    .order('created_at', { ascending: false });
-  if (sErr) throw new Error(sErr.message);
-  const streaks = (sData ?? []) as StreakRow[];
+  await supabase.rpc('settle_my_streaks'); // best-effort: ends streaks with a missed week
+
+  const [live, lost] = await Promise.all([
+    supabase.from('streaks').select(STREAK_COLS).neq('status', 'ended').order('created_at', { ascending: false }),
+    supabase
+      .from('streaks')
+      .select(STREAK_COLS)
+      .eq('status', 'ended')
+      .eq('ended_reason', 'lost')
+      .gt('ended_at', new Date(Date.now() - 7 * DAY_MS).toISOString())
+      .order('ended_at', { ascending: false }),
+  ]);
+  if (live.error) throw new Error(live.error.message);
+  const streaks = [...((live.data ?? []) as StreakRow[]), ...((lost.data ?? []) as StreakRow[])];
   if (streaks.length === 0) return [];
 
   const { data: mData, error: mErr } = await supabase
@@ -328,6 +374,8 @@ export async function listStreaks(): Promise<Streak[]> {
         accepted: other.accepted,
         shareLabels: other.share_labels,
       },
+      photo_required: !!s.photo_required,
+      lost: s.status === 'ended' && s.ended_reason === 'lost',
       invitedPending: s.status === 'pending' && !mine.accepted,
       waitingOnFriend: s.status === 'pending' && mine.accepted && !other.accepted,
       progress: computeProgress(s, uid, other.user_id, mine.target, other.target, checkins),
@@ -341,37 +389,92 @@ export const createStreak = (
   friendId: string,
   myTarget: number,
   friendTarget: number,
-  onMiss: OnMiss,
+  photoRequired: boolean,
 ) =>
   rpc('create_streak', {
     p_name: name.trim(),
     p_friend: friendId,
     p_my_target: myTarget,
     p_friend_target: friendTarget,
-    p_on_miss: onMiss,
+    p_photo: photoRequired,
   });
 
 export const respondStreakInvite = (streakId: string, accept: boolean) =>
   rpc('respond_streak_invite', { p_streak: streakId, p_accept: accept });
-export const leaveStreak = (streakId: string) => rpc('leave_streak', { p_streak: streakId });
+/** Cancel a pending invite you sent. Active streaks can't be left; they end when lost. */
+export const cancelStreakInvite = (streakId: string) => rpc('leave_streak', { p_streak: streakId });
+
+/** Active streaks this workout could count toward (shown in the post-workout check-in). */
+export async function listCheckinTargets(): Promise<Streak[]> {
+  const all = await listStreaks();
+  return all.filter((s) => s.status === 'active' && s.me.accepted && !!s.progress);
+}
+
+export const checkInStreak = (streakId: string, label?: string | null) =>
+  rpc('check_in', { p_streak: streakId, p_label: label ?? null });
+/** Undo this workout's credit for one streak (post-workout Edit). */
+export const skipCheckin = (streakId: string) => rpc('skip_checkin', { p_streak: streakId });
+
+// Minimal base64 decoder (no dependency) for uploading camera photos.
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function base64ToBytes(b64: string): Uint8Array {
+  const clean = b64.replace(/^data:[^,]*,/, '').replace(/[^A-Za-z0-9+/]/g, '');
+  const out = new Uint8Array(Math.floor((clean.length * 3) / 4));
+  let o = 0;
+  for (let i = 0; i < clean.length; i += 4) {
+    const a = B64.indexOf(clean[i]);
+    const b = B64.indexOf(clean[i + 1]);
+    const c = i + 2 < clean.length ? B64.indexOf(clean[i + 2]) : -1;
+    const d = i + 3 < clean.length ? B64.indexOf(clean[i + 3]) : -1;
+    out[o++] = (a << 2) | (b >> 4);
+    if (c >= 0) out[o++] = ((b & 15) << 4) | (c >> 2);
+    if (d >= 0) out[o++] = ((c & 3) << 6) | d;
+  }
+  return out.subarray(0, o);
+}
 
 /**
- * Append a self-reported check-in to every active streak the user is in.
- * Called when a workout session is completed. Best-effort — never blocks or
- * fails the workout finish.
+ * Upload one in-app camera photo and use it as proof for each photo streak.
+ * The photo is stored once per streak (each streak's folder is readable only
+ * by its two members). Returns the streak ids that were counted.
  */
-export async function checkInActiveStreaks(label?: string): Promise<void> {
-  if (!supabase) return;
-  try {
-    const streaks = await listStreaks();
-    const active = streaks.filter((s) => s.status === 'active' && s.me.accepted);
-    await Promise.all(
-      active.map((s) => supabase!.rpc('check_in', { p_streak: s.id, p_label: label ?? null })),
-    );
-  } catch {
-    // Streak credit must never block finishing a workout.
+export async function checkInWithPhoto(
+  streakIds: string[],
+  label: string | null,
+  base64: string,
+): Promise<{ counted: string[]; failed: string[] }> {
+  if (!supabase) throw new Error('Cloud accounts are not configured.');
+  const uid = await myId();
+  if (!uid) throw new Error('Please sign in.');
+  // Supabase's React Native upload expects a plain ArrayBuffer (no shared view).
+  const view = base64ToBytes(base64);
+  const bytes = view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength) as ArrayBuffer;
+  const counted: string[] = [];
+  const failed: string[] = [];
+  for (const sid of streakIds) {
+    const path = `${uid}/${sid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const up = await supabase.storage
+      .from('streak-photos')
+      .upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
+    if (up.error) {
+      failed.push(sid);
+      continue;
+    }
+    const { error } = await supabase.rpc('check_in_photo', {
+      p_streak: sid,
+      p_label: label,
+      p_photo_path: path,
+    });
+    if (error) failed.push(sid);
+    else counted.push(sid);
   }
+  return { counted, failed };
 }
+
+export const reactCheckin = (checkinId: string, emoji: Reaction | null) =>
+  rpc('react_checkin', { p_checkin: checkinId, p_emoji: emoji });
+export const reportPhoto = (checkinId: string, reason: string) =>
+  rpc('report_photo', { p_checkin: checkinId, p_reason: reason });
 
 /** One streak with its computed progress (reuses listStreaks). */
 export async function getStreak(id: string): Promise<Streak | null> {
@@ -385,7 +488,7 @@ export async function getStreakActivity(streakId: string, cycleIndex: number): P
   const uid = await myId();
   const { data, error } = await supabase
     .from('streak_checkins')
-    .select('id, user_id, delta, source, note, label, created_at')
+    .select('id, user_id, delta, source, note, label, created_at, photo_path')
     .eq('streak_id', streakId)
     .eq('cycle_index', cycleIndex)
     .order('created_at', { ascending: false });
@@ -394,23 +497,51 @@ export async function getStreakActivity(streakId: string, cycleIndex: number): P
     id: string;
     user_id: string;
     delta: number;
-    source: 'app' | 'manual';
+    source: ActivityEvent['source'];
     note: string | null;
     label: string | null;
     created_at: string;
+    photo_path: string | null;
   }[];
   const others = [...new Set(rows.filter((r) => r.user_id !== uid).map((r) => r.user_id))];
-  const profs = await profilesByIds(others);
-  return rows.map((r) => ({
-    id: r.id,
-    mine: r.user_id === uid,
-    username: r.user_id === uid ? 'You' : profs[r.user_id]?.username ?? 'friend',
-    delta: r.delta,
-    source: r.source,
-    note: r.note,
-    label: r.label,
-    created_at: r.created_at,
-  }));
+
+  // Photos: short-lived signed links. Storage refuses anything older than 7 days.
+  const paths = rows.map((r) => r.photo_path).filter((p): p is string => !!p);
+  const urlByPath: Record<string, string> = {};
+  const [profs, signed, reacts] = await Promise.all([
+    profilesByIds(others),
+    paths.length
+      ? supabase.storage.from('streak-photos').createSignedUrls(paths, 3600)
+      : Promise.resolve({ data: [], error: null }),
+    rows.length
+      ? supabase.from('streak_reactions').select('checkin_id, user_id, emoji').in('checkin_id', rows.map((r) => r.id))
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  for (const s of (signed.data ?? []) as { path: string | null; signedUrl: string | null; error: string | null }[]) {
+    if (s.path && s.signedUrl && !s.error) urlByPath[s.path] = s.signedUrl;
+  }
+  const reactRows = (reacts.data ?? []) as { checkin_id: string; user_id: string; emoji: Reaction }[];
+
+  return rows.map((r) => {
+    const mineR = reactRows.filter((x) => x.checkin_id === r.id);
+    return {
+      id: r.id,
+      mine: r.user_id === uid,
+      username: r.user_id === uid ? 'You' : profs[r.user_id]?.username ?? 'friend',
+      delta: r.delta,
+      source: r.source,
+      note: r.note,
+      label: r.label,
+      created_at: r.created_at,
+      hadPhoto: !!r.photo_path,
+      photoUrl: r.photo_path ? urlByPath[r.photo_path] ?? null : null,
+      reactions: {
+        fire: mineR.filter((x) => x.emoji === 'fire').length,
+        muscle: mineR.filter((x) => x.emoji === 'muscle').length,
+      },
+      myReaction: mineR.find((x) => x.user_id === uid)?.emoji ?? null,
+    };
+  });
 }
 
 export const correctCheckin = (streakId: string, delta: 1 | -1, note: string) =>

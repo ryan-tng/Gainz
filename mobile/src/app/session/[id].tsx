@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
+import { StreakCheckIn } from '@/components/StreakCheckIn';
 import { Card, EmptyState } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
@@ -13,7 +14,7 @@ import { useTheme, useThemedStyles } from '@/store/theme';
 import { useWorkouts } from '@/store/workouts';
 
 export default function SessionDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, checkin } = useLocalSearchParams<{ id: string; checkin?: string }>();
   const router = useRouter();
   const { sessions, deleteSession } = useWorkouts();
   const { palette } = useTheme();
@@ -94,6 +95,10 @@ export default function SessionDetailScreen() {
           </Card>
         ))}
       </ScrollView>
+      {/* Just finished (?checkin=1): count it toward streaks — toast or one sheet. */}
+      {checkin === '1' ? (
+        <StreakCheckIn label={session.name ?? null} finishedAt={session.finishedAt ?? Date.now()} />
+      ) : null}
     </SafeAreaView>
   );
 }

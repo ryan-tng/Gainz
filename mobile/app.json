@@ -56,13 +56,13 @@
         "expo-image-picker",
         {
           "photosPermission": "Gainz uses your photos to add pictures and tutorials to gym machines.",
-          "cameraPermission": "Gainz uses your camera to take photos of gym machines and their instructions."
+          "cameraPermission": "Gainz uses your camera to scan food barcodes, photograph meals for calorie estimates, take photos of gym machines, and take workout proof photos for streaks with friends."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Gainz uses your camera to scan food barcodes."
+          "cameraPermission": "Gainz uses your camera to scan food barcodes, photograph meals for calorie estimates, take photos of gym machines, and take workout proof photos for streaks with friends."
         }
       ],
       "expo-audio",

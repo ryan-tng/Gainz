@@ -46,14 +46,18 @@ export function buildShareLink(code: string): string {
   return Linking.createURL('/template/import', { queryParams: { code } });
 }
 
-/** Look up a shared template by its code. Returns null if not found. */
+/**
+ * Look up a shared template by its code. Returns null if not found.
+ *
+ * Goes through the get_shared_template RPC (a SECURITY DEFINER function) rather
+ * than selecting the table directly, so a user can only resolve a code they
+ * already have — they can't enumerate everyone's shared workouts.
+ */
 export async function fetchSharedTemplate(code: string): Promise<SharedTemplate | null> {
   if (!supabase) throw new Error('Sign in to import workouts.');
-  const { data, error } = await supabase
-    .from('shared_templates')
-    .select('template')
-    .eq('code', code.trim().toUpperCase())
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('get_shared_template', {
+    p_code: code.trim().toUpperCase(),
+  });
   if (error) throw new Error(error.message);
-  return (data?.template as SharedTemplate) ?? null;
+  return (data as SharedTemplate | null) ?? null;
 }

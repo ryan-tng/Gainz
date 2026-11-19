@@ -1,4 +1,4 @@
-import { ML_BASE_URL } from './config';
+import { ML_BASE_URL, ML_KEY } from './config';
 import type { BodyWeightEntry, FoodEntry } from './types';
 
 export interface AdaptiveTdee {
@@ -25,7 +25,10 @@ export async function getAdaptiveTdee(
   try {
     res = await fetch(`${ML_BASE_URL}/adaptive-tdee`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ML_KEY ? { 'X-Gainz-Key': ML_KEY } : {}),
+      },
       body: JSON.stringify({
         weights: weights.map((w) => ({ at: w.loggedAt, lb: w.weightLb })),
         intake: entries.map((e) => ({ at: e.loggedAt, kcal: e.calories })),
