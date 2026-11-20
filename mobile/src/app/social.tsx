@@ -19,6 +19,7 @@ import { InitialAvatar, SegmentBar, StreakBadge, useStreakColors } from '@/compo
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { confirmAsync, notify } from '@/lib/confirm';
+import { askOnce, syncStreakReminders } from '@/lib/notifications';
 import { getPendingPhotos, timeLeftLabel, type PendingPhoto } from '@/lib/streakPending';
 import {
   blockUser,
@@ -172,6 +173,12 @@ function FriendsHome({ profile }: { profile: Profile }) {
       setOutgoing(out);
       setStreaks(st);
       setPending(pend);
+      // First active streak: ask (once) to allow "streak ends soon" reminders.
+      if (st.some((s) => s.status === 'active')) {
+        void askOnce().then((granted) => {
+          if (granted) void syncStreakReminders(st);
+        });
+      }
     } catch {
       // transient; the lists just won't refresh
     }

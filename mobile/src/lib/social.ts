@@ -1,3 +1,4 @@
+import { syncStreakReminders } from './notifications';
 import { supabase } from './supabase';
 
 export interface Profile {
@@ -381,7 +382,17 @@ export async function listStreaks(): Promise<Streak[]> {
       progress: computeProgress(s, uid, other.user_id, mine.target, other.target, checkins),
     });
   }
+  void syncStreakReminders(out); // keep "streak ends soon" reminders current
   return out;
+}
+
+/** Reload streaks just to refresh the scheduled reminders (after a check-in, on app open). */
+export async function refreshStreakReminders(): Promise<void> {
+  try {
+    await listStreaks();
+  } catch {
+    // offline etc. — reminders stay as last scheduled
+  }
 }
 
 export const createStreak = (

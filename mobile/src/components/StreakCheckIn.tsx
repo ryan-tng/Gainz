@@ -11,6 +11,7 @@ import {
   checkInStreak,
   endsLabel,
   listCheckinTargets,
+  refreshStreakReminders,
   skipCheckin,
   type Streak,
 } from '@/lib/social';
@@ -52,6 +53,7 @@ export function StreakCheckIn({ label, finishedAt }: { label: string | null; fin
 
   const countAll = async (ids: string[]) => {
     const results = await Promise.allSettled(ids.map((id) => checkInStreak(id, label)));
+    void refreshStreakReminders(); // progress changed: reschedule "ends soon" reminders
     return ids.filter((_, i) => results[i].status === 'fulfilled');
   };
 
@@ -119,7 +121,10 @@ export function StreakCheckIn({ label, finishedAt }: { label: string | null; fin
     setBusy(true);
     try {
       const ok = await countAll(plainChecked.map((s) => s.id));
-      if (needPhoto) await addPendingPhotos(pendingFor(photoChecked));
+      if (needPhoto) {
+        await addPendingPhotos(pendingFor(photoChecked));
+        void refreshStreakReminders(); // adds the "30 minutes left" photo reminder
+      }
       setMode('idle');
       if (action === 'photo' && needPhoto) {
         const to =
@@ -155,6 +160,7 @@ export function StreakCheckIn({ label, finishedAt }: { label: string | null; fin
     try {
       const skip = counted.filter((id) => !checked[id]);
       await Promise.allSettled(skip.map((id) => skipCheckin(id)));
+      void refreshStreakReminders();
       const left = counted.filter((id) => checked[id]);
       setCounted(left);
       setMode('idle');

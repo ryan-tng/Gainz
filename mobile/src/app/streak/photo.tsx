@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { notify } from '@/lib/confirm';
-import { checkInWithPhoto } from '@/lib/social';
+import { checkInWithPhoto, refreshStreakReminders } from '@/lib/social';
 import { PHOTO_WINDOW_MS, removePendingPhotos, timeLeftLabel } from '@/lib/streakPending';
 import { useTheme } from '@/store/theme';
 
@@ -69,6 +69,7 @@ export default function StreakPhotoScreen() {
     try {
       const { counted, failed } = await checkInWithPhoto(ids, label, shot.base64);
       await removePendingPhotos(counted);
+      void refreshStreakReminders(); // clears the photo reminder, updates "ends soon"
       if (failed.length === 0) {
         notify('Sent', counted.length === 1 ? 'Your streak is counted.' : `${counted.length} streaks counted.`);
         router.back();

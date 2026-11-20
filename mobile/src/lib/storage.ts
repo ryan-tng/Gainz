@@ -127,7 +127,9 @@ export const storage = {
   clearAll: async () => {
     suppressNotify = true;
     try {
-      await AsyncStorage.multiRemove(Object.values(KEYS));
+      // Plus device-only keys kept outside the cloud backup (they belong to
+      // the signed-in account): postponed streak proof photos.
+      await AsyncStorage.multiRemove([...Object.values(KEYS), 'gainz:pendingStreakPhotos']);
     } finally {
       suppressNotify = false;
     }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gainz",
     "slug": "gainz",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gainz",
@@ -66,7 +66,13 @@
         }
       ],
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "color": "#a3e635"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false,

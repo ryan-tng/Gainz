@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { cancelRestDone, scheduleRestDone } from '@/lib/notifications';
 import { storage } from '@/lib/storage';
 
 const DEFAULT_REST = 90;
@@ -57,6 +58,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     return () => {
       if (endTimer.current) clearTimeout(endTimer.current);
+      void cancelRestDone(); // e.g. signing out remounts this provider
       stopRinging();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,9 +118,23 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     setAlarming(false);
   };
 
+  // When the rest is due to end. If the app was in the background (iOS pauses
+  // JS timers), the in-app timer fires late on return; by then the system
+  // notification already alerted the user, so don't start ringing again.
+  const dueAt = useRef<number | null>(null);
+  const LATE_MS = 5_000;
+
   const scheduleEnd = (ms: number) => {
     clearEndTimer();
-    endTimer.current = setTimeout(startRinging, Math.max(0, ms));
+    const delay = Math.max(0, ms);
+    dueAt.current = Date.now() + delay;
+    void scheduleRestDone(delay / 1000);
+    endTimer.current = setTimeout(() => {
+      const late = dueAt.current !== null && Date.now() - dueAt.current > LATE_MS;
+      dueAt.current = null;
+      if (late) setEndsAt(null);
+      else startRinging();
+    }, delay);
   };
 
   const value = useMemo<RestTimerContextValue>(
@@ -145,6 +161,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         }),
       skip: () => {
         clearEndTimer();
+        dueAt.current = null;
+        void cancelRestDone();
         stopRinging();
         setEndsAt(null);
       },

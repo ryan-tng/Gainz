@@ -4,8 +4,8 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
@@ -14,6 +14,14 @@ import { ACCENTS, GRADIENTS, Radius, Spacing, type Palette } from '@/constants/t
 import { confirmAsync, notify } from '@/lib/confirm';
 import { API_BASE_URL } from '@/lib/config';
 import { pickFromLibrary, usableImageUri } from '@/lib/images';
+import {
+  getNotificationPrefs,
+  openSystemSettings,
+  requestFromSettings,
+  setNotificationPrefs,
+  type NotificationPrefs,
+} from '@/lib/notifications';
+import { refreshStreakReminders } from '@/lib/social';
 import { storage } from '@/lib/storage';
 import { useAuth } from '@/store/auth';
 import { useNutrition } from '@/store/nutrition';
@@ -53,6 +61,27 @@ export default function SettingsScreen() {
   const { configured, user, signOut, updatePassword, deleteAccount } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const [coachNameDraft, setCoachNameDraft] = useState(coachName);
+
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({ rest: true, streaks: true });
+  useEffect(() => {
+    void getNotificationPrefs().then(setNotifPrefs);
+  }, []);
+  const toggleNotif = async (key: keyof NotificationPrefs, on: boolean) => {
+    if (on && (await requestFromSettings()) === 'denied') {
+      const open = await confirmAsync({
+        title: 'Notifications are off',
+        message: 'Allow notifications for Gainz in your phone’s Settings to get these alerts.',
+        confirmText: 'Open Settings',
+        cancelText: 'Not now',
+      });
+      if (open) openSystemSettings();
+      return;
+    }
+    const next = { ...notifPrefs, [key]: on };
+    setNotifPrefs(next);
+    await setNotificationPrefs(next);
+    if (key === 'streaks' && on) void refreshStreakReminders();
+  };
 
   const [pwOpen, setPwOpen] = useState(false);
   const [newPw, setNewPw] = useState('');
@@ -391,6 +420,40 @@ export default function SettingsScreen() {
           />
         </View>
         <Text style={styles.hint}>Auto-starts after you complete a set. Tap −15/+15 or Skip on the timer.</Text>
+
+        {/* Notifications (local, scheduled on this device) */}
+        {Platform.OS !== 'web' ? (
+          <>
+            <Text style={styles.sectionLabel}>Notifications</Text>
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.switchLabel}>Rest timer finished</Text>
+                <Text style={styles.switchSub}>Get notified when rest ends while Gainz is in the background.</Text>
+              </View>
+              <Switch
+                value={notifPrefs.rest}
+                onValueChange={(v) => toggleNotif('rest', v)}
+                trackColor={{ false: palette.surface2, true: palette.accent }}
+                thumbColor={palette.fg}
+              />
+            </View>
+            <View style={[styles.switchRow, { marginTop: Spacing.three }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.switchLabel}>Streak reminders</Text>
+                <Text style={styles.switchSub}>
+                  A heads-up the day before and 3 hours before a streak week ends if you&apos;re still short,
+                  and when a proof photo is about to expire.
+                </Text>
+              </View>
+              <Switch
+                value={notifPrefs.streaks}
+                onValueChange={(v) => toggleNotif('streaks', v)}
+                trackColor={{ false: palette.surface2, true: palette.accent }}
+                thumbColor={palette.fg}
+              />
+            </View>
+          </>
+        ) : null}
 
         {/* AI Coach */}
         <Text style={styles.sectionLabel}>AI Coach</Text>

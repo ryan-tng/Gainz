@@ -1,8 +1,9 @@
 import { Stack, useRootNavigationState, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -10,6 +11,8 @@ import { RestTimerBar } from '@/components/RestTimerBar';
 import { darkPalette } from '@/constants/theme';
 import { notify } from '@/lib/confirm';
 import { parseAuthParams } from '@/lib/authLinks';
+import { clearStreakReminders, initNotifications, streakIdFrom } from '@/lib/notifications';
+import { refreshStreakReminders } from '@/lib/social';
 import { storage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { backupToCloud } from '@/lib/sync';
@@ -20,6 +23,9 @@ import { ProfileProvider } from '@/store/profile';
 import { RestTimerProvider } from '@/store/restTimer';
 import { ThemeProvider, useTheme } from '@/store/theme';
 import { WorkoutProvider } from '@/store/workouts';
+
+// Set the foreground-display handler + Android channels before anything schedules.
+initNotifications();
 
 /** Auto-pushes local changes to the cloud (debounced) while signed in. */
 function CloudSync() {
@@ -77,9 +83,44 @@ function useAuthDeepLinks() {
   }, [url, router, navReady]);
 }
 
+/**
+ * Local notifications: keep streak reminders current whenever the app comes to
+ * the foreground, clear them on sign-out, and open the streak when a reminder
+ * is tapped.
+ */
+function useNotificationSync() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const navReady = useRootNavigationState()?.key;
+  const lastResponse = Notifications.useLastNotificationResponse();
+  const handled = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      void clearStreakReminders();
+      return;
+    }
+    void refreshStreakReminders();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') void refreshStreakReminders();
+    });
+    return () => sub.remove();
+  }, [user]);
+
+  useEffect(() => {
+    if (!navReady || !user || !lastResponse) return;
+    const key = lastResponse.notification.request.identifier;
+    if (handled.current === key) return;
+    handled.current = key;
+    const streakId = streakIdFrom(lastResponse);
+    if (streakId) router.push(`/streak/${streakId}`);
+  }, [lastResponse, navReady, user, router]);
+}
+
 function ThemedApp() {
   const { palette, isDark } = useTheme();
   useAuthDeepLinks();
+  useNotificationSync();
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
