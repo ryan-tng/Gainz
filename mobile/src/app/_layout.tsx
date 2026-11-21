@@ -1,9 +1,10 @@
 import { Stack, useRootNavigationState, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, AppState, View } from 'react-native';
+import { ActivityIndicator, AppState, Image, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -26,6 +27,11 @@ import { WorkoutProvider } from '@/store/workouts';
 
 // Set the foreground-display handler + Android channels before anything schedules.
 initNotifications();
+
+// Keep the native splash (Gainz logo) up until the account check + cloud pull
+// finishes, then fade straight into the app — no spinner screen in between.
+void SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.setOptions({ duration: 250, fade: true });
 
 /** Auto-pushes local changes to the cloud (debounced) while signed in. */
 function CloudSync() {
@@ -196,12 +202,30 @@ function ThemedApp() {
 function AppTree() {
   const { loading, resetKey } = useAuth();
 
+  useEffect(() => {
+    const hide = () => void SplashScreen.hideAsync().catch(() => {});
+    if (!loading) {
+      hide();
+      return;
+    }
+    // Slow network: don't hold the logo forever — fall back to the spinner.
+    const t = setTimeout(hide, 8000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
   // Hold the app on a splash until the initial session check + cloud pull is
   // done, so stores mount with the account's data already in local storage.
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: darkPalette.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={darkPalette.accent} />
+      // Same look as the native splash (shown only if loading runs long).
+      <View style={{ flex: 1, backgroundColor: '#08090b', alignItems: 'center', justifyContent: 'center' }}>
+        <Image
+          source={require('../../assets/images/splash-screen.png')}
+          style={{ width: 200, height: 200 }}
+          resizeMode="contain"
+          accessibilityLabel="Gainz"
+        />
+        <ActivityIndicator color={darkPalette.accent} style={{ position: 'absolute', bottom: 80 }} />
       </View>
     );
   }
