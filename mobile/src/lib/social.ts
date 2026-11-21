@@ -211,9 +211,17 @@ export interface ActivityEvent {
   note: string | null;
   label: string | null;
   created_at: string;
-  /** Signed URL for a proof photo (null once expired after 7 days). */
-  photoUrl: string | null;
   hadPhoto: boolean;
+  /**
+   * View-once state of the proof photo:
+   *  new     — a friend's photo you haven't opened yet (tap to view, once)
+   *  opened  — a friend's photo you already viewed
+   *  mine    — your own photo (always viewable)
+   *  expired — older than 7 days
+   */
+  photoStatus: 'new' | 'opened' | 'mine' | 'expired' | null;
+  /** For your own photos: whether your friend has opened it. */
+  openedByFriend: boolean;
   reactions: { fire: number; muscle: number };
   myReaction: Reaction | null;
 }
@@ -482,6 +490,21 @@ export async function checkInWithPhoto(
   return { counted, failed };
 }
 
+/**
+ * Open a proof photo. For a friend's photo this records the (single) view on
+ * the server, then returns a 60-second link. Throws if it was already opened.
+ */
+export async function openStreakPhoto(checkinId: string): Promise<string> {
+  if (!supabase) throw new Error('Cloud accounts are not configured.');
+  const { data: path, error } = await supabase.rpc('open_streak_photo', { p_checkin: checkinId });
+  if (error) throw new Error(error.message);
+  const { data, error: signErr } = await supabase.storage
+    .from('streak-photos')
+    .createSignedUrl(path as string, 60);
+  if (signErr || !data?.signedUrl) throw new Error('Could not load the photo. Try again.');
+  return data.signedUrl;
+}
+
 export const reactCheckin = (checkinId: string, emoji: Reaction | null) =>
   rpc('react_checkin', { p_checkin: checkinId, p_emoji: emoji });
 export const reportPhoto = (checkinId: string, reason: string) =>
@@ -516,25 +539,37 @@ export async function getStreakActivity(streakId: string, cycleIndex: number): P
   }[];
   const others = [...new Set(rows.filter((r) => r.user_id !== uid).map((r) => r.user_id))];
 
-  // Photos: short-lived signed links. Storage refuses anything older than 7 days.
-  const paths = rows.map((r) => r.photo_path).filter((p): p is string => !!p);
-  const urlByPath: Record<string, string> = {};
-  const [profs, signed, reacts] = await Promise.all([
+  // Photos are NOT loaded here: they're view-once, opened on tap (openStreakPhoto).
+  const photoIds = rows.filter((r) => r.photo_path).map((r) => r.id);
+  const ids = rows.map((r) => r.id);
+  const [profs, reacts, views] = await Promise.all([
     profilesByIds(others),
-    paths.length
-      ? supabase.storage.from('streak-photos').createSignedUrls(paths, 3600)
+    ids.length
+      ? supabase.from('streak_reactions').select('checkin_id, user_id, emoji').in('checkin_id', ids)
       : Promise.resolve({ data: [], error: null }),
-    rows.length
-      ? supabase.from('streak_reactions').select('checkin_id, user_id, emoji').in('checkin_id', rows.map((r) => r.id))
+    photoIds.length
+      ? supabase.from('photo_views').select('checkin_id, viewer').in('checkin_id', photoIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
-  for (const s of (signed.data ?? []) as { path: string | null; signedUrl: string | null; error: string | null }[]) {
-    if (s.path && s.signedUrl && !s.error) urlByPath[s.path] = s.signedUrl;
-  }
   const reactRows = (reacts.data ?? []) as { checkin_id: string; user_id: string; emoji: Reaction }[];
+  const viewRows = (views.data ?? []) as { checkin_id: string; viewer: string }[];
+  const WEEK_MS = 7 * DAY_MS;
 
   return rows.map((r) => {
     const mineR = reactRows.filter((x) => x.checkin_id === r.id);
+    const isMine = r.user_id === uid;
+    const viewedByMe = viewRows.some((v) => v.checkin_id === r.id && v.viewer === uid);
+    const openedByFriend = viewRows.some((v) => v.checkin_id === r.id && v.viewer !== uid);
+    const expired = Date.now() - new Date(r.created_at).getTime() > WEEK_MS;
+    const photoStatus: ActivityEvent['photoStatus'] = !r.photo_path
+      ? null
+      : expired
+        ? 'expired'
+        : isMine
+          ? 'mine'
+          : viewedByMe
+            ? 'opened'
+            : 'new';
     return {
       id: r.id,
       mine: r.user_id === uid,
@@ -545,7 +580,8 @@ export async function getStreakActivity(streakId: string, cycleIndex: number): P
       label: r.label,
       created_at: r.created_at,
       hadPhoto: !!r.photo_path,
-      photoUrl: r.photo_path ? urlByPath[r.photo_path] ?? null : null,
+      photoStatus,
+      openedByFriend: isMine && openedByFriend,
       reactions: {
         fire: mineR.filter((x) => x.emoji === 'fire').length,
         muscle: mineR.filter((x) => x.emoji === 'muscle').length,

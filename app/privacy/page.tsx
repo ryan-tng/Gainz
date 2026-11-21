@@ -56,8 +56,8 @@ export default function PrivacyPolicy() {
         </li>
         <li style={li}>
           <b>Streak proof photos:</b> if you and a friend turn on photo proof for a streak, the photo
-          you take in the app after a workout is shared only with that friend. Photos are stored
-          privately and automatically deleted after 7 days. You can report a photo from the
+          you take in the app after a workout is shared only with that friend, who can open it once.
+          Photos are stored privately and automatically deleted after 7 days. You can report a photo from the
           streak&apos;s activity, and blocking someone ends your streaks with them.
         </li>
         <li style={li}>

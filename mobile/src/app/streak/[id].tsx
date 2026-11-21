@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppBackground } from '@/components/AppBackground';
+import { PhotoViewer, type OriginRect } from '@/components/PhotoViewer';
 import { SegmentBar, streakState, useStreakColors } from '@/components/StreakBits';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
@@ -25,6 +26,7 @@ import {
   endsLabel,
   getStreak,
   getStreakActivity,
+  openStreakPhoto,
   reactCheckin,
   reportPhoto,
   setShareLabels,
@@ -48,6 +50,10 @@ export default function StreakDetailScreen() {
   const [pending, setPending] = useState<PendingPhoto | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [opening, setOpening] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<{ url: string; event: ActivityEvent; origin: OriginRect | null } | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -134,6 +140,27 @@ export default function StreakDetailScreen() {
       } catch (err) {
         notify('Could not report', err instanceof Error ? err.message : 'Please try again.');
       }
+    }
+  };
+
+  /** Open a proof photo full screen. A friend's photo can only be opened once. */
+  const openPhoto = async (e: ActivityEvent, origin: OriginRect | null) => {
+    if (opening || (e.photoStatus !== 'new' && e.photoStatus !== 'mine')) return;
+    setOpening(e.id);
+    try {
+      const url = await openStreakPhoto(e.id);
+      // Start loading the image now so it's ready as the zoom lands.
+      void Image.prefetch(url).catch(() => {});
+      setViewer({ url, event: e, origin });
+      if (e.photoStatus === 'new') {
+        // Counted as opened right away (server already recorded the view).
+        setActivity((list) => list.map((x) => (x.id === e.id ? { ...x, photoStatus: 'opened' } : x)));
+      }
+    } catch (err) {
+      notify('Can’t open photo', err instanceof Error ? err.message : 'Please try again.');
+      void load();
+    } finally {
+      setOpening(null);
     }
   };
 
@@ -281,15 +308,15 @@ export default function StreakDetailScreen() {
                       <Text style={styles.logTime}>{formatTime(new Date(e.created_at).getTime())}</Text>
                     </View>
 
-                    {e.photoUrl ? (
-                      <Image
-                        source={{ uri: e.photoUrl }}
-                        style={styles.photo}
-                        resizeMode="cover"
-                        accessibilityLabel={`Proof photo from ${e.username}`}
+                    {e.photoStatus ? (
+                      <PhotoTile
+                        event={e}
+                        loading={opening === e.id}
+                        onOpen={(origin) => openPhoto(e, origin)}
+                        palette={palette}
+                        styles={styles}
+                        friend={friend}
                       />
-                    ) : e.hadPhoto ? (
-                      <Text style={styles.logMeta}>Photo expired (photos are kept for 7 days).</Text>
                     ) : null}
 
                     {e.hadPhoto && e.delta > 0 ? (
@@ -316,7 +343,7 @@ export default function StreakDetailScreen() {
                           );
                         })}
                         <View style={{ flex: 1 }} />
-                        {!e.mine && e.photoUrl ? (
+                        {!e.mine && e.photoStatus !== 'expired' ? (
                           <Pressable onPress={() => report(e)} hitSlop={8} accessibilityRole="button">
                             <Text style={styles.reportText}>Report</Text>
                           </Pressable>
@@ -386,7 +413,97 @@ export default function StreakDetailScreen() {
           ) : null}
         </ScrollView>
       )}
+
+      {/* View-once photo: zooms out of its tile, tap or swipe down to close. */}
+      {viewer ? (
+        <PhotoViewer
+          url={viewer.url}
+          origin={viewer.origin}
+          title={`${viewer.event.mine ? 'Your photo' : `@${viewer.event.username}`} · ${formatTime(
+            new Date(viewer.event.created_at).getTime(),
+          )}`}
+          onReport={viewer.event.mine ? undefined : () => void report(viewer.event)}
+          onClosed={() => setViewer(null)}
+        />
+      ) : null}
     </SafeAreaView>
+  );
+}
+
+/** Snapchat-style tile for a proof photo in the activity log. */
+function PhotoTile({
+  event: e,
+  loading,
+  onOpen,
+  palette,
+  styles,
+  friend,
+}: {
+  event: ActivityEvent;
+  loading: boolean;
+  onOpen: (origin: OriginRect | null) => void;
+  palette: Palette;
+  styles: ReturnType<typeof makeStyles>;
+  friend: string;
+}) {
+  const ref = useRef<View>(null);
+  const tappable = e.photoStatus === 'new' || e.photoStatus === 'mine';
+  // Measure the tile so the viewer can zoom out of (and back into) it.
+  const press = () => {
+    const node = ref.current;
+    if (!node) return onOpen(null);
+    node.measureInWindow((x, y, width, height) =>
+      onOpen(width > 0 ? { x, y, width, height } : null),
+    );
+  };
+  const isNew = e.photoStatus === 'new';
+  const title =
+    e.photoStatus === 'new'
+      ? 'Tap to view photo'
+      : e.photoStatus === 'opened'
+        ? 'Opened'
+        : e.photoStatus === 'mine'
+          ? e.openedByFriend
+            ? `Opened by @${friend}`
+            : 'Delivered'
+          : 'Photo expired';
+  const sub = e.photoStatus === 'expired' ? 'Photos are kept for 7 days' : null;
+  return (
+    <Pressable
+      ref={ref}
+      onPress={press}
+      disabled={!tappable || loading}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: !tappable }}
+      style={[styles.tile, isNew && { borderColor: palette.accent }]}>
+      <View style={[styles.tileIcon, isNew && { backgroundColor: palette.accent }]}>
+        {loading ? (
+          <ActivityIndicator color={isNew ? palette.onAccent : palette.accent} size="small" />
+        ) : (
+          <Ionicons
+            name={
+              e.photoStatus === 'new'
+                ? 'camera'
+                : e.photoStatus === 'mine'
+                  ? e.openedByFriend
+                    ? 'checkmark-done'
+                    : 'paper-plane'
+                  : e.photoStatus === 'opened'
+                    ? 'eye-outline'
+                    : 'time-outline'
+            }
+            size={18}
+            color={isNew ? palette.onAccent : palette.muted}
+          />
+        )}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.tileTitle, !tappable && { color: palette.muted }]}>{title}</Text>
+        {sub ? <Text style={styles.logMeta}>{sub}</Text> : null}
+      </View>
+      {tappable ? <Ionicons name="chevron-forward" size={18} color={palette.muted} /> : null}
+    </Pressable>
   );
 }
 
@@ -473,7 +590,27 @@ const makeStyles = (palette: Palette) =>
     logText: { color: palette.fg, fontSize: 14, fontWeight: '600' },
     logMeta: { color: palette.muted, fontSize: 12, marginTop: 1 },
     logTime: { color: palette.muted, fontSize: 12 },
-    photo: { width: '100%', aspectRatio: 3 / 4, borderRadius: Radius.md, backgroundColor: palette.surface2 },
+    tile: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.three,
+      minHeight: 56,
+      paddingHorizontal: Spacing.three,
+      paddingVertical: Spacing.two,
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface2,
+    },
+    tileIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: palette.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tileTitle: { color: palette.fg, fontSize: 15, fontWeight: '700' },
     reactRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
     reactBtn: {
       flexDirection: 'row',
