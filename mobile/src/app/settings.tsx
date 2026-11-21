@@ -3,8 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,7 +21,7 @@ import {
   setNotificationPrefs,
   type NotificationPrefs,
 } from '@/lib/notifications';
-import { refreshStreakReminders } from '@/lib/social';
+import { getMyProfile, refreshStreakReminders } from '@/lib/social';
 import { storage } from '@/lib/storage';
 import { useAuth } from '@/store/auth';
 import { useNutrition } from '@/store/nutrition';
@@ -61,6 +61,17 @@ export default function SettingsScreen() {
   const { configured, user, signOut, updatePassword, deleteAccount } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const [coachNameDraft, setCoachNameDraft] = useState(coachName);
+
+  // Current @username (refreshed when returning from the username screen).
+  const [username, setUsername] = useState<string | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      getMyProfile()
+        .then((p) => setUsername(p?.username ?? null))
+        .catch(() => {});
+    }, [user]),
+  );
 
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({ rest: true, streaks: true });
   useEffect(() => {
@@ -172,6 +183,19 @@ export default function SettingsScreen() {
                 {user.email}
               </Text>
             </View>
+            <Pressable
+              onPress={() => router.push(username ? '/username?mode=edit' : '/username')}
+              style={[styles.rowCard, { marginTop: Spacing.two }]}
+              accessibilityRole="button"
+              accessibilityLabel={username ? `Username @${username}. Change` : 'Pick a username'}>
+              <Text style={styles.rowLabel}>Username</Text>
+              <View style={styles.rowRight}>
+                <Text style={styles.rowValue} numberOfLines={1}>
+                  {username ? `@${username}` : 'Pick one'}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={palette.muted} />
+              </View>
+            </Pressable>
             <Text style={styles.hint}>Your data syncs to your account automatically.</Text>
 
             <AppButton
@@ -609,6 +633,7 @@ const makeStyles = (palette: Palette) =>
     },
     rowLabel: { color: palette.fg, fontSize: 15 },
     rowValue: { color: palette.muted, fontSize: 15 },
+    rowRight: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1, marginLeft: Spacing.three },
     pwForm: { gap: Spacing.two, marginTop: Spacing.three },
     input: {
       color: palette.fg,

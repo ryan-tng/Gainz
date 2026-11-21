@@ -49,6 +49,19 @@ export async function claimUsername(username: string, displayName?: string | nul
   }
 }
 
+/**
+ * Whether a handle is free (your own current handle counts as free). Returns
+ * null if the check couldn't run (e.g. offline) so the UI can stay neutral.
+ */
+export async function isUsernameAvailable(username: string): Promise<boolean | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc('username_available', {
+    p_username: username.trim().toLowerCase(),
+  });
+  if (error) return null;
+  return data === true;
+}
+
 /** Find users by username prefix (rate-limited server-side). */
 export async function searchUsers(q: string): Promise<Profile[]> {
   if (!supabase) return [];

@@ -12,7 +12,7 @@ import { darkPalette } from '@/constants/theme';
 import { notify } from '@/lib/confirm';
 import { parseAuthParams } from '@/lib/authLinks';
 import { clearStreakReminders, initNotifications, streakIdFrom } from '@/lib/notifications';
-import { refreshStreakReminders } from '@/lib/social';
+import { getMyProfile, refreshStreakReminders } from '@/lib/social';
 import { storage } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { backupToCloud } from '@/lib/sync';
@@ -117,10 +117,39 @@ function useNotificationSync() {
   }, [lastResponse, navReady, user, router]);
 }
 
+/**
+ * Every signed-in account needs a @username. Right after sign-up (once the
+ * email link signs them in) — or for older accounts that never picked one —
+ * send them to the username screen. Only redirects when the lookup succeeds
+ * and finds no profile, so being offline never traps anyone.
+ */
+function useUsernameGate() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const navReady = useRootNavigationState()?.key;
+  const checked = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!navReady || !user || checked.current === user.id) return;
+    let cancelled = false;
+    getMyProfile()
+      .then((p) => {
+        if (cancelled) return;
+        checked.current = user.id;
+        if (!p) router.replace('/username');
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [navReady, user, router]);
+}
+
 function ThemedApp() {
   const { palette, isDark } = useTheme();
   useAuthDeepLinks();
   useNotificationSync();
+  useUsernameGate();
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -135,6 +164,7 @@ function ThemedApp() {
         <Stack.Screen name="reset-password" options={{ presentation: 'card' }} />
         <Stack.Screen name="profile" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings" options={{ presentation: 'card' }} />
+        <Stack.Screen name="username" options={{ presentation: 'card', gestureEnabled: false }} />
         <Stack.Screen name="social" options={{ presentation: 'card' }} />
         <Stack.Screen name="streak/new" options={{ presentation: 'card' }} />
         <Stack.Screen name="streak/[id]" options={{ presentation: 'card' }} />
