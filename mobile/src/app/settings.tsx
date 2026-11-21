@@ -505,6 +505,12 @@ export default function SettingsScreen() {
           <Text style={styles.rowLabel}>Privacy Policy</Text>
           <Ionicons name="open-outline" size={18} color={palette.muted} />
         </Pressable>
+        <Pressable
+          style={[styles.rowCard, { marginTop: Spacing.two }]}
+          onPress={() => Linking.openURL(`${API_BASE_URL}/terms`)}>
+          <Text style={styles.rowLabel}>Terms of Use</Text>
+          <Ionicons name="open-outline" size={18} color={palette.muted} />
+        </Pressable>
         <Text style={styles.hint}>
           Food &amp; barcode data from Open Food Facts (ODbL). Nutrition values are
           community-sourced and may be incomplete — double-check important numbers.

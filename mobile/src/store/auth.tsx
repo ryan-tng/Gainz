@@ -40,6 +40,9 @@ interface AuthContextValue {
   ) => Promise<void>;
 }
 
+/** Bump when the Terms of Use change materially. */
+export const TERMS_VERSION = '2026-11-21';
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -111,7 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: email.trim(),
           password,
           // Confirmation link returns to the app (deep link) instead of a web page.
-          options: { emailRedirectTo: Linking.createURL('/') },
+          // The sign-up form requires agreeing to the Terms first; record when.
+          options: {
+            emailRedirectTo: Linking.createURL('/'),
+            data: { terms_accepted_at: new Date().toISOString(), terms_version: TERMS_VERSION },
+          },
         });
         if (error) {
           // With email confirmation OFF, a duplicate email errors outright.

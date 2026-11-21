@@ -33,6 +33,7 @@ import {
   listOutgoingRequests,
   listStreaks,
   removeFriend,
+  reportUser,
   respondFriendRequest,
   respondStreakInvite,
   searchUsers,
@@ -251,6 +252,37 @@ function FriendsHome({ profile }: { profile: Profile }) {
     }
   };
 
+  // Report (offensive username / message / harassment), then offer to block.
+  const reportFlow = async (u: Profile, context: string) => {
+    if (
+      !(await confirmAsync({
+        title: `Report @${u.username}?`,
+        message: 'Report an offensive username, message, or behavior. We review every report within 24 hours.',
+        confirmText: 'Report',
+        destructive: true,
+      }))
+    ) {
+      return;
+    }
+    try {
+      await reportUser(u.user_id, context);
+    } catch (e) {
+      notify('Could not report', e instanceof Error ? e.message : 'Please try again.');
+      return;
+    }
+    if (
+      await confirmAsync({
+        title: 'Thanks for reporting',
+        message: `Do you also want to block @${u.username}? They won't be able to send you requests or share streaks with you.`,
+        confirmText: 'Block',
+        cancelText: 'Not now',
+        destructive: true,
+      })
+    ) {
+      void guard(() => blockUser(u.user_id), 'Could not block user');
+    }
+  };
+
   // There's no Leave for active streaks: they end on their own when a week is
   // missed. Only pending invites can be declined (invitee) or cancelled (sender).
   const declineStreakFlow = async (s: Streak) => {
@@ -392,6 +424,9 @@ function FriendsHome({ profile }: { profile: Profile }) {
                   <Pressable onPress={() => removeFriendFlow(u)} hitSlop={6}>
                     <Text style={styles.linkMuted}>Remove</Text>
                   </Pressable>
+                  <Pressable onPress={() => reportFlow(u, 'Reported from friends list')} hitSlop={6}>
+                    <Text style={styles.linkMuted}>Report</Text>
+                  </Pressable>
                   <Pressable onPress={() => blockFlow(u)} hitSlop={6}>
                     <Text style={styles.linkDanger}>Block</Text>
                   </Pressable>
@@ -428,6 +463,17 @@ function FriendsHome({ profile }: { profile: Profile }) {
                     onPress={() => guard(() => respondFriendRequest(r.id, 'decline'), 'Could not decline')}
                     style={styles.reqBtn}
                   />
+                  <Pressable
+                    onPress={() =>
+                      reportFlow(
+                        r.user,
+                        r.message ? `Friend request message: "${r.message}"` : 'Reported from friend request',
+                      )
+                    }
+                    hitSlop={6}
+                    style={styles.reqBlock}>
+                    <Text style={styles.linkMuted}>Report</Text>
+                  </Pressable>
                   <Pressable onPress={() => blockFlow(r.user)} hitSlop={6} style={styles.reqBlock}>
                     <Text style={styles.linkDanger}>Block</Text>
                   </Pressable>

@@ -18,6 +18,7 @@ import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
 import { confirmAsync, notify } from '@/lib/confirm';
+import { isUsernameAllowed } from '@/lib/moderation';
 import { USERNAME_RE, claimUsername, getMyProfile, isUsernameAvailable } from '@/lib/social';
 import { useAuth } from '@/store/auth';
 import { useTheme, useThemedStyles } from '@/store/theme';
@@ -59,12 +60,13 @@ export default function UsernameScreen() {
   const normalized = handle.trim().toLowerCase();
   const valid = USERNAME_RE.test(normalized);
   const unchanged = !!current && normalized === current;
+  const allowed = !valid || isUsernameAllowed(normalized);
 
   // Debounced live "is it taken?" check.
   const seq = useRef(0);
   useEffect(() => {
     setError(null);
-    if (!valid || unchanged) {
+    if (!valid || unchanged || !allowed) {
       setAvailability('idle');
       return;
     }
@@ -76,9 +78,9 @@ export default function UsernameScreen() {
       setAvailability(ok === null ? 'unknown' : ok ? 'free' : 'taken');
     }, 400);
     return () => clearTimeout(t);
-  }, [normalized, valid, unchanged]);
+  }, [normalized, valid, unchanged, allowed]);
 
-  const canSave = valid && !unchanged && !busy && availability !== 'taken' && availability !== 'checking';
+  const canSave = valid && allowed && !unchanged && !busy && availability !== 'taken' && availability !== 'checking';
 
   const save = async () => {
     if (!canSave) return;
@@ -117,6 +119,9 @@ export default function UsernameScreen() {
     if (!normalized) return null;
     if (!valid) {
       return { color: palette.muted, icon: 'information-circle-outline' as const, text: 'At least 3 characters.' };
+    }
+    if (!allowed) {
+      return { color: palette.danger, icon: 'close-circle' as const, text: 'That username isn’t allowed.' };
     }
     if (unchanged) return { color: palette.muted, icon: 'person-outline' as const, text: 'This is your current username.' };
     switch (availability) {
@@ -166,7 +171,7 @@ export default function UsernameScreen() {
                 : 'This is how friends find you and start streaks with you. You can change it later in Settings.'}
             </Text>
 
-            <View style={[styles.handleRow, availability === 'taken' && { borderColor: palette.danger }]}>
+            <View style={[styles.handleRow, (availability === 'taken' || !allowed) && { borderColor: palette.danger }]}>
               <Text style={styles.at}>@</Text>
               <TextInput
                 style={styles.handleInput}

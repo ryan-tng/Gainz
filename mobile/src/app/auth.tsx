@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -17,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppBackground } from '@/components/AppBackground';
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing, type Palette } from '@/constants/theme';
+import { API_BASE_URL } from '@/lib/config';
 import { notify } from '@/lib/confirm';
 import { useAuth } from '@/store/auth';
 import { useTheme, useThemedStyles } from '@/store/theme';
@@ -35,8 +37,10 @@ export default function AuthScreen() {
   const [busy, setBusy] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
 
-  const valid = EMAIL_RE.test(email.trim()) && password.length >= 6;
+  const valid =
+    EMAIL_RE.test(email.trim()) && password.length >= 6 && (mode === 'signin' || agreed);
   // This screen is only reached as the required sign-in gate (you can't open it
   // while signed in), so there's nothing to dismiss to.
   const canDismiss = !!user;
@@ -165,6 +169,31 @@ export default function AuthScreen() {
             autoCapitalize="none"
           />
 
+          {mode === 'signup' ? (
+            <View style={styles.agreeRow}>
+              <Pressable
+                onPress={() => setAgreed((a) => !a)}
+                hitSlop={8}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: agreed }}
+                accessibilityLabel="I agree to the Terms of Use and Privacy Policy"
+                style={[styles.checkbox, agreed && styles.checkboxOn]}>
+                {agreed ? <Ionicons name="checkmark" size={16} color={palette.onAccent} /> : null}
+              </Pressable>
+              <Text style={styles.agreeText}>
+                I agree to the{' '}
+                <Text style={styles.agreeLink} onPress={() => Linking.openURL(`${API_BASE_URL}/terms`)}>
+                  Terms of Use
+                </Text>{' '}
+                and{' '}
+                <Text style={styles.agreeLink} onPress={() => Linking.openURL(`${API_BASE_URL}/privacy`)}>
+                  Privacy Policy
+                </Text>
+                . There&apos;s no tolerance for objectionable content or abusive users.
+              </Text>
+            </View>
+          ) : null}
+
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <AppButton
@@ -242,6 +271,21 @@ const makeStyles = (palette: Palette) =>
       marginTop: Spacing.two,
       marginBottom: Spacing.three,
     },
+    agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, marginTop: Spacing.four },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 1,
+    },
+    checkboxOn: { backgroundColor: palette.accent, borderColor: palette.accent },
+    agreeText: { flex: 1, color: palette.muted, fontSize: 13, lineHeight: 19 },
+    agreeLink: { color: palette.accent, fontWeight: '700' },
     label: {
       color: palette.muted,
       fontSize: 13,

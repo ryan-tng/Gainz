@@ -523,6 +523,10 @@ export const reactCheckin = (checkinId: string, emoji: Reaction | null) =>
 export const reportPhoto = (checkinId: string, reason: string) =>
   rpc('report_photo', { p_checkin: checkinId, p_reason: reason });
 
+/** Report a user (offensive username, friend-request message, harassment). */
+export const reportUser = (userId: string, reason: string) =>
+  rpc('report_user', { p_user: userId, p_reason: reason });
+
 /** One streak with its computed progress (reuses listStreaks). */
 export async function getStreak(id: string): Promise<Streak | null> {
   const all = await listStreaks();
