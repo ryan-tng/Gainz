@@ -3,7 +3,9 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -144,7 +146,10 @@ function AddExerciseModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
+      {/* Lift the sheet above the keyboard so the name field stays visible. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}>
         <View style={styles.modalCard}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>New exercise</Text>
@@ -183,7 +188,7 @@ function AddExerciseModal({
             style={{ marginTop: Spacing.five }}
           />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

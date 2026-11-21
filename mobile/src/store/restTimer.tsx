@@ -78,9 +78,19 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const startRinging = () => {
+  /**
+   * Rest finished: show the "rest's over" bar. `quiet` = the rest ended while
+   * the app was in the background (the system notification already alerted the
+   * user), so show the bar + one buzz without starting the looping alarm.
+   */
+  const startRinging = (quiet = false) => {
     setEndsAt(null);
     setAlarming(true);
+    if (quiet) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      autoStopTimer.current = setTimeout(() => stopRinging(), AUTO_STOP_MS);
+      return;
+    }
     if (alarmEnabledRef.current) {
       try {
         if (!playerRef.current) {
@@ -120,7 +130,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
 
   // When the rest is due to end. If the app was in the background (iOS pauses
   // JS timers), the in-app timer fires late on return; by then the system
-  // notification already alerted the user, so don't start ringing again.
+  // notification already alerted the user, so show the finished bar quietly
+  // instead of starting the looping alarm minutes later.
   const dueAt = useRef<number | null>(null);
   const LATE_MS = 5_000;
 
@@ -128,12 +139,11 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     clearEndTimer();
     const delay = Math.max(0, ms);
     dueAt.current = Date.now() + delay;
-    void scheduleRestDone(delay / 1000);
+    void scheduleRestDone(delay / 1000, alarmEnabledRef.current);
     endTimer.current = setTimeout(() => {
       const late = dueAt.current !== null && Date.now() - dueAt.current > LATE_MS;
       dueAt.current = null;
-      if (late) setEndsAt(null);
-      else startRinging();
+      startRinging(late);
     }, delay);
   };
 

@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
@@ -25,6 +25,7 @@ export default function StreakPhotoScreen() {
   const finishedAt = Number(params.finishedAt) || Date.now();
   const label = params.label || null;
 
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const camRef = useRef<CameraView>(null);
   const [facing, setFacing] = useState<CameraType>('front');
@@ -122,7 +123,9 @@ export default function StreakPhotoScreen() {
           />
         )}
 
-        <SafeAreaView edges={['top']} style={styles.topBar} pointerEvents="box-none">
+        {/* Positioned from the device insets: SafeAreaView inside a full-screen
+            modal can measure 0 and slide this under the status bar. */}
+        <View style={[styles.topBar, { top: insets.top + Spacing.two }]} pointerEvents="box-none">
           <Pressable onPress={() => router.back()} style={styles.pill} accessibilityRole="button" hitSlop={6}>
             <Text style={styles.pillText}>Later</Text>
           </Pressable>
@@ -131,7 +134,7 @@ export default function StreakPhotoScreen() {
               Sending to {params.to || 'your streak'}
             </Text>
           </View>
-        </SafeAreaView>
+        </View>
 
         <View style={styles.hintWrap} pointerEvents="none">
           <View style={styles.pill}>
@@ -142,7 +145,7 @@ export default function StreakPhotoScreen() {
         </View>
       </View>
 
-      <SafeAreaView edges={['bottom']} style={styles.controls}>
+      <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, Spacing.four) }]}>
         {shot ? (
           <View style={styles.reviewRow}>
             <AppButton label="Retake" icon="refresh" variant="secondary" onPress={() => setShot(null)} disabled={busy} style={{ flex: 1 }} />
@@ -176,7 +179,7 @@ export default function StreakPhotoScreen() {
         )}
         {busy ? <ActivityIndicator color="#f4f6f8" style={{ marginTop: Spacing.two }} /> : null}
         <Text style={styles.footnote}>Camera only. Photos from your library can’t be used.</Text>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -195,7 +198,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: Spacing.four,
     right: Spacing.four,
-    top: Spacing.two,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -210,7 +212,7 @@ const styles = StyleSheet.create({
   },
   pillText: { color: '#f4f6f8', fontSize: 14, fontWeight: '600' },
   hintWrap: { position: 'absolute', bottom: Spacing.five, left: 0, right: 0, alignItems: 'center' },
-  controls: { paddingTop: Spacing.five, paddingHorizontal: Spacing.six, paddingBottom: Spacing.four, alignItems: 'center' },
+  controls: { paddingTop: Spacing.five, paddingHorizontal: Spacing.six, alignItems: 'center' },
   shutterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch' },
   sideSlot: { width: 52, height: 52 },
   shutter: {

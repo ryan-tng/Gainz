@@ -151,8 +151,12 @@ async function cancelKinds(kinds: Kind[]): Promise<void> {
 let restId: string | null = null;
 let restSeq = 0;
 
-/** Schedule (or move) the "rest's over" notification `seconds` from now. */
-export async function scheduleRestDone(seconds: number): Promise<void> {
+/**
+ * Schedule (or move) the "rest's over" notification `seconds` from now.
+ * `withSound` follows the app's "Alarm sound" setting. Note: notification
+ * sounds obey the phone's silent switch (the in-app alarm doesn't).
+ */
+export async function scheduleRestDone(seconds: number, withSound = true): Promise<void> {
   if (!SUPPORTED) return;
   const seq = ++restSeq;
   await cancelRestDone(false);
@@ -163,7 +167,12 @@ export async function scheduleRestDone(seconds: number): Promise<void> {
   if (seq !== restSeq) return; // a newer start/skip happened while we awaited
   try {
     restId = await Notifications.scheduleNotificationAsync({
-      content: { title: 'Rest’s over 💪', body: 'Time for your next set.', sound: 'default', data: { kind: 'rest' } },
+      content: {
+        title: 'Rest’s over 💪',
+        body: 'Time for your next set.',
+        sound: withSound ? 'default' : false,
+        data: { kind: 'rest' },
+      },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: Math.round(seconds), channelId: 'rest' },
     });
   } catch {
