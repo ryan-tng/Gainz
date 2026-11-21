@@ -4,7 +4,17 @@ export const metadata = {
 };
 
 const UPDATED = "November 18, 2026";
-const CONTACT = "support@joingainz.com";
+const CONTACT = "ryant012015.business@gmail.com";
+
+// Bright, full-page background so the policy stays readable on top of the
+// site's dark global theme.
+const page: React.CSSProperties = {
+  position: "relative",
+  zIndex: 1,
+  minHeight: "100vh",
+  background: "#ffffff",
+  color: "#1a1d21",
+};
 
 const wrap: React.CSSProperties = {
   maxWidth: 760,
@@ -16,13 +26,14 @@ const wrap: React.CSSProperties = {
   lineHeight: 1.6,
   fontSize: 16,
 };
-const h1: React.CSSProperties = { fontSize: 30, fontWeight: 800, letterSpacing: -0.5, marginBottom: 4 };
-const meta: React.CSSProperties = { color: "#6b7280", fontSize: 14, marginBottom: 32 };
-const h2: React.CSSProperties = { fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 };
+const h1: React.CSSProperties = { fontSize: 30, fontWeight: 800, letterSpacing: -0.5, marginBottom: 4, color: "#0d0f12" };
+const meta: React.CSSProperties = { color: "#4b5563", fontSize: 14, marginBottom: 32 };
+const h2: React.CSSProperties = { fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8, color: "#0d0f12" };
 const li: React.CSSProperties = { marginBottom: 6 };
 
 export default function PrivacyPolicy() {
   return (
+    <div style={page}>
     <main style={wrap}>
       <h1 style={h1}>Privacy Policy</h1>
       <p style={meta}>Gainz · Last updated {UPDATED}</p>
@@ -127,5 +138,6 @@ export default function PrivacyPolicy() {
         .
       </p>
     </main>
+    </div>
   );
 }
